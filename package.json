@@ -1,0 +1,17 @@
+{
+  "name": "reactive-db",
+  "version": "0.0.1",
+  "description": "Database with reactivity",
+  "main": "index.js",
+  "dependencies": {
+    "@aldinh777/reactive": "^0.24.2"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.3"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "aldinh777",
+  "license": "ISC"
+}

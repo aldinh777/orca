@@ -1,0 +1,7 @@
+node_modules
+.vscode
+src/*.js
+src/*.d.ts
+error/*.js
+error/*.d.ts
+test.js
