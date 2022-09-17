@@ -5,9 +5,9 @@ import RDViewBuilder, { RDView } from './RDViewBuilder';
 export default class RDB {
     private _tables: StateMap<RDTable> = new StateMap();
 
-    createTable(table: string, format: object): RDTable {
+    createTable(table: string, structure: object): RDTable {
         if (!this._tables.has(table)) {
-            const tb = new RDTable(table, format);
+            const tb = new RDTable(table, structure);
             this._tables.set(table, tb);
             return tb;
         } else {

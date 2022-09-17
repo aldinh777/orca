@@ -1,6 +1,7 @@
 import { State } from '@aldinh777/reactive';
-import { StateList, StateMap } from '@aldinh777/reactive/collection';
+import { StateList } from '@aldinh777/reactive/collection';
 import RDB from './RDB';
+import RDRow from './RDRow';
 
 interface RDViewRow {
     [key: string]: State<any>;
@@ -11,7 +12,7 @@ export default class RDViewBuilder {
     private _db: RDB;
     private _table?: string;
     private _props: string[];
-    private _filter?: (row: StateMap<any>) => boolean;
+    private _filter?: (row: RDRow) => boolean;
     private _sorters: [field: string, order: 'asc' | 'desc'][];
     private _group?: string;
 
@@ -74,8 +75,8 @@ export default class RDViewBuilder {
         return view;
     }
     private static watchRowUpdate(
-        objMapper: WeakMap<StateMap<any>, any>,
-        row: StateMap<any>,
+        objMapper: WeakMap<RDRow, any>,
+        row: RDRow,
         view: RDView,
         builder: RDViewBuilder
     ) {
@@ -96,8 +97,8 @@ export default class RDViewBuilder {
         });
     }
     private static insertItemToView(
-        objMapper: WeakMap<StateMap<any>, any>,
-        row: StateMap<any>,
+        objMapper: WeakMap<RDRow, any>,
+        row: RDRow,
         view: RDView,
         builder: RDViewBuilder
     ) {
@@ -106,17 +107,13 @@ export default class RDViewBuilder {
         objMapper.set(row, cloneData);
         view.push(cloneData);
     }
-    private static removeItemFromView(
-        objMapper: WeakMap<StateMap<any>, any>,
-        row: StateMap<any>,
-        view: RDView
-    ) {
+    private static removeItemFromView(objMapper: WeakMap<RDRow, any>, row: RDRow, view: RDView) {
         const otwdelete = objMapper.get(row);
         const indexdelete = view.raw.indexOf(otwdelete);
         objMapper.delete(row);
         view.splice(indexdelete, 1);
     }
-    private static copySelected(row: StateMap<any>, props: string[], builder: RDViewBuilder): any {
+    private static copySelected(row: RDRow, props: string[], builder: RDViewBuilder): any {
         const cloneData: any = {};
         if (props.length === 0) {
             RDViewBuilder.selectAll(row, cloneData);
@@ -141,7 +138,7 @@ export default class RDViewBuilder {
         });
         return cloneData;
     }
-    private static selectAll(row: StateMap<any>, ob: any) {
+    private static selectAll(row: RDRow, ob: any) {
         row.raw.forEach((value, key) => {
             const st = new State(value);
             ob[key] = st;

@@ -1,22 +1,21 @@
-import {
-    DeleteListener,
-    InsertListener,
-    ResizeListener,
-    StateList,
-    StateMap
-} from '@aldinh777/reactive/collection';
+import { StateCollection } from '@aldinh777/reactive/collection';
+import RDRow from './RDRow';
 
 export interface TableStructure {
     [type: string]: string;
 }
 
-export default class RDTable {
+/**
+ * This shit needs to implements update listeners
+ */
+export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
     name: string;
     structure: TableStructure = {};
-    private _rows: StateList<StateMap<any>> = new StateList();
     private _verifier: Map<string, (value: any) => boolean> = new Map();
 
     constructor(name: string, format: object) {
+        super();
+        this.raw = [];
         this.name = name;
         for (const column in format) {
             const type: string = (format as any)[column];
@@ -28,7 +27,6 @@ export default class RDTable {
             ) {
                 const expected = type.slice(0, 6);
                 const optional = type.slice(6);
-                this.structure[column] = type;
                 this._verifier.set(column, (value) => {
                     if (optional && value === undefined) {
                         return true;
@@ -43,24 +41,29 @@ export default class RDTable {
                     }
                 });
             } else {
-                throw Error(
-                    `nonvalid type '${type}' for column '${column}' when creating table '${name}'`
-                );
+                const [reftype] = type.split(':');
+                if (reftype !== 'ref' && reftype !== 'refs') {
+                    throw Error(
+                        `nonvalid type '${type}' for column '${column}' when creating table '${name}'`
+                    );
+                }
+                this._verifier.set(column, (value) => {
+                    throw Error(`refferences cannot be set directly, we have procedure for it`);
+                });
             }
+            this.structure[column] = type;
         }
     }
 
-    onInsert(listener: InsertListener<number, StateMap<any>>) {
-        return this._rows.onInsert(listener);
+    get(index: string): RDRow | undefined {
+        throw new Error('Method not implemented, on purpose.');
     }
-    onDelete(listener: DeleteListener<number, StateMap<any>>) {
-        return this._rows.onDelete(listener);
+    set(index: string, value: RDRow): this {
+        throw new Error('Method not implemented, on purpose.');
     }
-    onResize(listener: ResizeListener<number, StateMap<any>>) {
-        return this._rows.onResize(listener);
-    }
+
     insert(o: object): void {
-        const row = new StateMap();
+        const row = new RDRow();
         for (const column in o) {
             const value = (o as any)[column];
             const verify = this._verifier.get(column);
@@ -112,26 +115,23 @@ export default class RDTable {
                     `or probably you just have a little typo, then this is a little embarassing`
             );
         });
-        this._rows.push(row);
+        this.raw.push(row);
     }
     insertAll(obs: object[]) {
         for (const o of obs) {
             this.insert(o);
         }
     }
-    delete(filter: (row: StateMap<any>) => boolean): void {
-        const rawlist = this._rows.raw;
+    delete(filter: (row: RDRow) => boolean): void {
+        const rawlist = this.raw;
         const dellist = rawlist.filter(filter);
         for (const del of dellist) {
             const index = rawlist.indexOf(del);
-            this._rows.splice(index, 1);
+            this.raw.splice(index, 1);
         }
     }
-    selectRow(
-        filter: (row: StateMap<any>) => boolean,
-        callback?: (row: StateMap<any>) => any
-    ): StateMap<any> | undefined {
-        for (const row of this._rows.raw) {
+    selectRow(filter: (row: RDRow) => boolean, callback?: (row: RDRow) => any): RDRow | undefined {
+        for (const row of this.raw) {
             if (filter(row)) {
                 if (callback) {
                     callback(row);
@@ -140,11 +140,8 @@ export default class RDTable {
             }
         }
     }
-    selectRows(
-        filter: '*' | ((row: StateMap<any>) => boolean),
-        callback?: (row: StateMap<any>) => any
-    ): StateMap<any>[] {
-        const rawlist = this._rows.raw;
+    selectRows(filter: '*' | ((row: RDRow) => boolean), callback?: (row: RDRow) => any): RDRow[] {
+        const rawlist = this.raw;
         let rows;
         if (filter === '*') {
             rows = [...rawlist];
