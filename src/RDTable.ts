@@ -55,11 +55,11 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
         }
     }
 
-    get(index: string): RDRow | undefined {
-        throw new Error('Method not implemented, on purpose.');
+    get(id: string): RDRow | undefined {
+        return this.selectRow((row) => row.get('id') === id);
     }
-    set(index: string, value: RDRow): this {
-        throw new Error('Method not implemented, on purpose.');
+    set(id: string, value: RDRow): this {
+        throw new Error('Method not implemented, on purpose!');
     }
 
     insert(o: object): void {
@@ -116,6 +116,9 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
             );
         });
         this.raw.push(row);
+        for (const ins of this._ins) {
+            ins(row.id, row);
+        }
     }
     insertAll(obs: object[]) {
         for (const o of obs) {
@@ -125,9 +128,12 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
     delete(filter: (row: RDRow) => boolean): void {
         const rawlist = this.raw;
         const dellist = rawlist.filter(filter);
-        for (const del of dellist) {
-            const index = rawlist.indexOf(del);
+        for (const delrow of dellist) {
+            const index = rawlist.indexOf(delrow);
             this.raw.splice(index, 1);
+            for (const del of this._del) {
+                del(delrow.id, delrow);
+            }
         }
     }
     selectRow(filter: (row: RDRow) => boolean, callback?: (row: RDRow) => any): RDRow | undefined {

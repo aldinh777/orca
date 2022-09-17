@@ -1,3 +1,4 @@
+import { State } from '@aldinh777/reactive';
 import { StateMap } from '@aldinh777/reactive/collection';
 import RDTable from './RDTable';
 import RDViewBuilder, { RDView } from './RDViewBuilder';
@@ -30,7 +31,12 @@ export default class RDB {
             view.raw.map((o) => {
                 const p: any = {};
                 for (const k in o) {
-                    p[k] = o[k].getValue();
+                    const what = o[k];
+                    if (what instanceof State) {
+                        p[k] = what.getValue();
+                    } else {
+                        p[k] = what;
+                    }
                 }
                 return p;
             })

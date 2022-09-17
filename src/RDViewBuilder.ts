@@ -121,6 +121,8 @@ export default class RDViewBuilder {
             for (const prop of props) {
                 if (prop === '*') {
                     RDViewBuilder.selectAll(row, cloneData);
+                } else if (prop === 'id') {
+                    cloneData.id = row.id;
                 } else {
                     if (!row.has(prop)) {
                         throw Error(
@@ -139,6 +141,7 @@ export default class RDViewBuilder {
         return cloneData;
     }
     private static selectAll(row: RDRow, ob: any) {
+        ob.id = row.id;
         row.raw.forEach((value, key) => {
             const st = new State(value);
             ob[key] = st;
