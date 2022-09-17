@@ -1,5 +1,5 @@
 import { StateCollection } from '@aldinh777/reactive/collection';
-import RDRow from './RDRow';
+import RDBRow from './RDBRow';
 
 export interface TableStructure {
     [type: string]: string;
@@ -8,7 +8,7 @@ export interface TableStructure {
 /**
  * This shit needs to implements update listeners
  */
-export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
+export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> {
     name: string;
     structure: TableStructure = {};
     private _verifier: Map<string, (value: any) => boolean> = new Map();
@@ -55,15 +55,15 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
         }
     }
 
-    get(id: string): RDRow | undefined {
+    get(id: string): RDBRow | undefined {
         return this.selectRow((row) => row.get('id') === id);
     }
-    set(id: string, value: RDRow): this {
+    set(id: string, value: RDBRow): this {
         throw new Error('Method not implemented, on purpose!');
     }
 
     insert(o: object): void {
-        const row = new RDRow();
+        const row = new RDBRow();
         for (const column in o) {
             const value = (o as any)[column];
             const verify = this._verifier.get(column);
@@ -125,7 +125,7 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
             this.insert(o);
         }
     }
-    delete(filter: (row: RDRow) => boolean): void {
+    delete(filter: (row: RDBRow) => boolean): void {
         const rawlist = this.raw;
         const dellist = rawlist.filter(filter);
         for (const delrow of dellist) {
@@ -136,7 +136,7 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
             }
         }
     }
-    selectRow(filter: (row: RDRow) => boolean, callback?: (row: RDRow) => any): RDRow | undefined {
+    selectRow(filter: (row: RDBRow) => boolean, callback?: (row: RDBRow) => any): RDBRow | undefined {
         for (const row of this.raw) {
             if (filter(row)) {
                 if (callback) {
@@ -146,7 +146,7 @@ export default class RDTable extends StateCollection<string, RDRow, RDRow[]> {
             }
         }
     }
-    selectRows(filter: '*' | ((row: RDRow) => boolean), callback?: (row: RDRow) => any): RDRow[] {
+    selectRows(filter: '*' | ((row: RDBRow) => boolean), callback?: (row: RDBRow) => any): RDBRow[] {
         const rawlist = this.raw;
         let rows;
         if (filter === '*') {

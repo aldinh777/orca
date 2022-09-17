@@ -1,21 +1,21 @@
 import { State } from '@aldinh777/reactive';
 import { StateMap } from '@aldinh777/reactive/collection';
-import RDTable from './RDTable';
-import RDViewBuilder, { RDView } from './RDViewBuilder';
+import RDBTable from './RDBTable';
+import RDBViewBuilder, { RDBView } from './RDBViewBuilder';
 
 export default class RDB {
-    private _tables: StateMap<RDTable> = new StateMap();
+    private _tables: StateMap<RDBTable> = new StateMap();
 
-    createTable(table: string, structure: object): RDTable {
+    createTable(table: string, structure: object): RDBTable {
         if (!this._tables.has(table)) {
-            const tb = new RDTable(table, structure);
+            const tb = new RDBTable(table, structure);
             this._tables.set(table, tb);
             return tb;
         } else {
-            return this._tables.get(table) as RDTable;
+            return this._tables.get(table) as RDBTable;
         }
     }
-    selectTable(table: string): RDTable {
+    selectTable(table: string): RDBTable {
         const tb = this._tables.get(table);
         if (tb) {
             return tb;
@@ -23,10 +23,10 @@ export default class RDB {
             throw Error(`inable to select non existing table '${table}'`);
         }
     }
-    createViewBuilder(): RDViewBuilder {
-        return new RDViewBuilder(this);
+    createViewBuilder(): RDBViewBuilder {
+        return new RDBViewBuilder(this);
     }
-    static displayView(view: RDView): any {
+    static displayView(view: RDBView): any {
         console.log(
             view.raw.map((o) => {
                 const p: any = {};
