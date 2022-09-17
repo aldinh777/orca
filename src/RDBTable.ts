@@ -1,4 +1,5 @@
 import { StateCollection } from '@aldinh777/reactive/collection';
+import RDB from './RDB';
 import RDBRow from './RDBRow';
 
 export interface TableStructure {
@@ -9,14 +10,16 @@ export interface TableStructure {
  * This shit needs to implements update listeners
  */
 export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> {
+    db: RDB;
     name: string;
     structure: TableStructure = {};
     private _verifier: Map<string, (value: any) => boolean> = new Map();
 
-    constructor(name: string, format: object) {
+    constructor(db: RDB, name: string, format: object) {
         super();
-        this.raw = [];
+        this.db = db;
         this.name = name;
+        this.raw = [];
         for (const column in format) {
             const type: string = (format as any)[column];
             if (
@@ -48,7 +51,18 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     );
                 }
                 this._verifier.set(column, (value) => {
-                    throw Error(`refferences cannot be set directly, we have procedure for it`);
+                    if (reftype === 'ref' && typeof value === 'object') {
+                        return true;
+                    } else if (reftype === 'refs' && value instanceof Array) {
+                        return true;
+                    } else {
+                        throw Error(
+                            `this error is too confusing to explain, will do it later.` +
+                                `here some random thing as hint '${reftype}' '${JSON.stringify(
+                                    value
+                                )}' '${name}'`
+                        );
+                    }
                 });
             }
             this.structure[column] = type;
@@ -62,8 +76,9 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         throw new Error('Method not implemented, on purpose!');
     }
 
-    insert(o: object): void {
+    insert(o: object): RDBRow {
         const row = new RDBRow();
+        // Iterate to be insert object and verify item
         for (const column in o) {
             const value = (o as any)[column];
             const verify = this._verifier.get(column);
@@ -75,19 +90,52 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                 );
             }
             verify(value);
-            row.set(column, value);
+            const [reftype, target] = this.structure[column].split(':');
+            if (reftype === 'ref') {
+                const targetTable = this.db.selectTable(target);
+                const targetRow = targetTable.insert(value);
+                row.replaceRef(column, targetRow);
+            } else if (reftype === 'refs') {
+                const targetTable = this.db.selectTable(target);
+                const targetRows = targetTable.insertAll(value);
+                row.addRefs(column, targetRows);
+            } else {
+                row.set(column, value);
+            }
         }
+        // Iterate structure ensure everything mandatory is filled
         for (const column in this.structure) {
-            const optional = this.structure[column].slice(6);
-            if (!row.has(column)) {
-                if (optional) {
-                    row.set(column, undefined);
-                } else {
+            const [reftype] = this.structure[column].split(':');
+            if (reftype === 'ref' || reftype === 'refs') {
+                if (reftype === 'ref' && !row.hasRef(column)) {
                     throw Error(
-                        `pls fill column '${column}' bcs it's mandatory for when insert into table '${this.name}'\n` +
-                            `=== the object in question ===\n${JSON.stringify(o, null, 2)}\n` +
-                            `=== expected structure ===\n${JSON.stringify(this.structure, null, 2)}`
+                        `this is mandatory refference, empty not allowed '${this.name}':'${column}'\n` +
+                            `=== to be inserted ===\n` +
+                            `${JSON.stringify(o, null, 2)}`
                     );
+                } else if (reftype === 'refs' && !row.hasRefs(column)) {
+                    throw Error(
+                        `this is mandatory refferences, empty not allowed '${this.name}':'${column}'\n` +
+                            `=== to be inserted ===\n` +
+                            `${JSON.stringify(o, null, 2)}`
+                    );
+                }
+            } else {
+                const optional = this.structure[column].slice(6);
+                if (!row.has(column)) {
+                    if (optional) {
+                        row.set(column, undefined);
+                    } else {
+                        throw Error(
+                            `pls fill column '${column}' bcs it's mandatory for when insert into table '${this.name}'\n` +
+                                `=== the object in question ===\n${JSON.stringify(o, null, 2)}\n` +
+                                `=== expected structure ===\n${JSON.stringify(
+                                    this.structure,
+                                    null,
+                                    2
+                                )}`
+                        );
+                    }
                 }
             }
         }
@@ -119,11 +167,14 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         for (const ins of this._ins) {
             ins(row.id, row);
         }
+        return row;
     }
-    insertAll(obs: object[]) {
+    insertAll(obs: object[]): RDBRow[] {
+        const inserteds: RDBRow[] = [];
         for (const o of obs) {
-            this.insert(o);
+            inserteds.push(this.insert(o));
         }
+        return inserteds;
     }
     delete(filter: (row: RDBRow) => boolean): void {
         const rawlist = this.raw;
@@ -136,7 +187,10 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             }
         }
     }
-    selectRow(filter: (row: RDBRow) => boolean, callback?: (row: RDBRow) => any): RDBRow | undefined {
+    selectRow(
+        filter: (row: RDBRow) => boolean,
+        callback?: (row: RDBRow) => any
+    ): RDBRow | undefined {
         for (const row of this.raw) {
             if (filter(row)) {
                 if (callback) {
@@ -146,14 +200,12 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             }
         }
     }
-    selectRows(filter: '*' | ((row: RDBRow) => boolean), callback?: (row: RDBRow) => any): RDBRow[] {
+    selectRows(
+        filter: '*' | ((row: RDBRow) => boolean),
+        callback?: (row: RDBRow) => any
+    ): RDBRow[] {
         const rawlist = this.raw;
-        let rows;
-        if (filter === '*') {
-            rows = [...rawlist];
-        } else {
-            rows = rawlist.filter(filter);
-        }
+        const rows = filter === '*' ? [...rawlist] : rawlist.filter(filter);
         if (callback) {
             for (const row of rows) {
                 callback(row);

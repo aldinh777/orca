@@ -8,7 +8,7 @@ export default class RDB {
 
     createTable(table: string, structure: object): RDBTable {
         if (!this._tables.has(table)) {
-            const tb = new RDBTable(table, structure);
+            const tb = new RDBTable(this, table, structure);
             this._tables.set(table, tb);
             return tb;
         } else {
