@@ -16,8 +16,12 @@ export default class RDBRow extends StateMap<any> {
     replaceRef(column: string, row: RDBRow) {
         this._ref.set(column, row);
     }
-    deleteRef() {}
-    selectRef() {}
+    deleteRef() {
+        throw Error('Method not implemented, yet!');
+    }
+    selectRef() {
+        throw Error('Method not implemented, yet!');
+    }
     hasRef(column: string): boolean {
         return this._ref.has(column);
     }
@@ -29,12 +33,20 @@ export default class RDBRow extends StateMap<any> {
         const list = this._refs.get(column) as StateList<RDBRow>;
         list.push(...rows);
     }
-    deleteRefs() {}
-    selectRefs() {}
+    deleteRefs() {
+        throw Error('Method not implemented, yet!');
+    }
+    selectRefs() {
+        throw Error('Method not implemented, yet!');
+    }
     hasRefs(collumn: string): boolean {
         return this._refs.has(collumn);
     }
 
-    selectDeref() {}
-    selectDerefs() {}
+    selectDeref() {
+        throw Error('Method not implemented, yet!');
+    }
+    selectDerefs() {
+        throw Error('Method not implemented, yet!');
+    }
 }

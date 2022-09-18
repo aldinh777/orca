@@ -12,7 +12,7 @@ export default class RDB {
             this._tables.set(table, tb);
             return tb;
         } else {
-            return this._tables.get(table) as RDBTable;
+            throw Error(`attempting to create an already existing table '${table}'`);
         }
     }
     selectTable(table: string): RDBTable {
@@ -23,23 +23,33 @@ export default class RDB {
             throw Error(`inable to select non existing table '${table}'`);
         }
     }
+    dropTable(table: string) {
+        if (this._tables.has(table)) {
+            const tb = this._tables.get(table) as RDBTable;
+            tb.delete(() => true);
+            this._tables.delete(table);
+        } else {
+            throw Error(`trying to delete non existing table ${table}`);
+        }
+    }
     createViewBuilder(): RDBViewBuilder {
         return new RDBViewBuilder(this);
     }
-    static displayView(view: RDBView): any {
-        console.log(
-            view.raw.map((o) => {
-                const p: any = {};
-                for (const k in o) {
-                    const what = o[k];
-                    if (what instanceof State) {
-                        p[k] = what.getValue();
-                    } else {
-                        p[k] = what;
-                    }
+    static toObject(view: RDBView): any {
+        return view.raw.map((o) => {
+            const p: any = {};
+            for (const k in o) {
+                const what = o[k];
+                if (what instanceof State) {
+                    p[k] = what.getValue();
+                } else {
+                    p[k] = what;
                 }
-                return p;
-            })
-        );
+            }
+            return p;
+        });
+    }
+    static displayView(view: RDBView): any {
+        console.log(this.toObject(view));
     }
 }

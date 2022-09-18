@@ -11,15 +11,13 @@ export type RDBView = StateList<RDBViewRow>;
 export default class RDBViewBuilder {
     private _db: RDB;
     private _table?: string;
-    private _props: string[];
+    private _props: string[] = [];
     private _filter?: (row: RDBRow) => boolean;
-    private _sorters: [field: string, order: 'asc' | 'desc'][];
-    private _group?: string;
+    // private _sorters: [field: string, order: 'asc' | 'desc'][] = [];
+    // private _group?: string;
 
     constructor(db: RDB) {
         this._db = db;
-        this._props = [];
-        this._sorters = [];
     }
 
     private clone(): RDBViewBuilder {
@@ -39,20 +37,16 @@ export default class RDBViewBuilder {
         builder._props = columns;
         return builder;
     }
-    where(filter: (item: any) => boolean): RDBViewBuilder {
+    where(filter: (row: RDBRow) => boolean): RDBViewBuilder {
         const builder = this.clone();
         builder._filter = filter;
         return builder;
     }
     orderBy(column: string, order: 'asc' | 'desc' = 'asc'): RDBViewBuilder {
-        const builder = this.clone();
-        builder._sorters.push([column, order]);
-        return builder;
+        throw Error('Method not implemented, yet');
     }
     groupBy(column: string): RDBViewBuilder {
-        const builder = this.clone();
-        builder._group = column;
-        return builder;
+        throw Error('Method not implemented, yet');
     }
     buildView(): RDBView {
         if (!this._table) {
@@ -74,6 +68,7 @@ export default class RDBViewBuilder {
         });
         return view;
     }
+
     private static watchRowUpdate(
         objMapper: WeakMap<RDBRow, any>,
         row: RDBRow,
@@ -124,6 +119,7 @@ export default class RDBViewBuilder {
                 } else if (prop === 'id') {
                     cloneData.id = row.id;
                 } else {
+                    // if (prop === '*.*')
                     if (!row.has(prop)) {
                         throw Error(
                             `not valid column '${prop}' to select from table '${builder._table}'`
