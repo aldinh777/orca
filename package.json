@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "jest --watch"
+    "test": "jest"
   },
   "author": "aldinh777",
   "license": "ISC"

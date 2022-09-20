@@ -5,6 +5,7 @@ import RDBViewBuilder, { RDBView } from './RDBViewBuilder';
 
 export default class RDB {
     private _tables: StateMap<RDBTable> = new StateMap();
+    query: RDBViewBuilder = new RDBViewBuilder(this);
 
     createTable(table: string, structure: object): RDBTable {
         if (!this._tables.has(table)) {
@@ -32,10 +33,8 @@ export default class RDB {
             throw Error(`trying to delete non existing table ${table}`);
         }
     }
-    createViewBuilder(): RDBViewBuilder {
-        return new RDBViewBuilder(this);
-    }
-    static toObject(view: RDBView): any {
+    renameTable(oldTable: string, newTable: string) {}
+    static viewToObject(view: RDBView): any {
         return view.raw.map((o) => {
             const p: any = {};
             for (const k in o) {
@@ -50,6 +49,6 @@ export default class RDB {
         });
     }
     static displayView(view: RDBView): any {
-        console.log(this.toObject(view));
+        console.log(RDB.viewToObject(view));
     }
 }

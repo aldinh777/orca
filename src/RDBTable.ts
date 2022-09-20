@@ -6,66 +6,20 @@ export interface TableStructure {
     [type: string]: string;
 }
 
-/**
- * This shit needs to implements update listeners
- */
 export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> {
     db: RDB;
     name: string;
     structure: TableStructure = {};
     private _verifier: Map<string, (value: any) => boolean> = new Map();
 
-    constructor(db: RDB, name: string, format: object) {
+    constructor(db: RDB, name: string, structure: object) {
         super();
         this.db = db;
         this.name = name;
         this.raw = [];
-        for (const column in format) {
-            const type: string = (format as any)[column];
-            if (
-                type === 'string' ||
-                type === 'string?' ||
-                type === 'number' ||
-                type === 'number?'
-            ) {
-                const expected = type.slice(0, 6);
-                const optional = type.slice(6);
-                this._verifier.set(column, (value) => {
-                    if (optional && value === undefined) {
-                        return true;
-                    } else if (typeof value === expected) {
-                        return true;
-                    } else {
-                        throw Error(
-                            `unvalid type at column '${column}' in table ${
-                                this.name
-                            }. expected: '${expected}', reality: '${typeof value}'`
-                        );
-                    }
-                });
-            } else {
-                const [reftype] = type.split(':');
-                if (reftype !== 'ref' && reftype !== 'refs') {
-                    throw Error(
-                        `nonvalid type '${type}' for column '${column}' when creating table '${name}'`
-                    );
-                }
-                this._verifier.set(column, (value) => {
-                    if (reftype === 'ref' && typeof value === 'object') {
-                        return true;
-                    } else if (reftype === 'refs' && value instanceof Array) {
-                        return true;
-                    } else {
-                        throw Error(
-                            `this error is too confusing to explain, will do it later.` +
-                                `here some random thing as hint '${reftype}' '${JSON.stringify(
-                                    value
-                                )}' '${name}'`
-                        );
-                    }
-                });
-            }
-            this.structure[column] = type;
+        for (const column in structure) {
+            const type: string = (structure as any)[column];
+            this.addColumn(column, type);
         }
     }
 
@@ -75,6 +29,51 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     set(id: string, value: RDBRow): this {
         throw new Error('Method not implemented, on purpose!');
     }
+
+    addColumn(column: string, type: string) {
+        if (type === 'string' || type === 'string?' || type === 'number' || type === 'number?') {
+            const expected = type.slice(0, 6);
+            const optional = type.slice(6);
+            this._verifier.set(column, (value) => {
+                if (optional && value === undefined) {
+                    return true;
+                } else if (typeof value === expected) {
+                    return true;
+                } else {
+                    throw Error(
+                        `unvalid type at column '${column}' in table ${
+                            this.name
+                        }. expected: '${expected}', reality: '${typeof value}'`
+                    );
+                }
+            });
+        } else {
+            const [reftype] = type.split(':');
+            if (reftype !== 'ref' && reftype !== 'refs') {
+                throw Error(
+                    `nonvalid type '${type}' for column '${column}' ` +
+                        `when creating or altering table '${this.name}'`
+                );
+            }
+            this._verifier.set(column, (value) => {
+                if (reftype === 'ref' && typeof value === 'object') {
+                    return true;
+                } else if (reftype === 'refs' && value instanceof Array) {
+                    return true;
+                } else {
+                    throw Error(
+                        `this error is too confusing to explain, will do it later. ` +
+                            `here some random thing as hint '${reftype}' ` +
+                            `'${JSON.stringify(value)}' '${this.name}'`
+                    );
+                }
+            });
+        }
+        this.structure[column] = type;
+    }
+    dropColumn(name: string) {}
+    modifyColumn(name: string, type: string) {}
+    renameColumn(oldname: string, newname: string) {}
 
     insert(o: object): RDBRow {
         const row = new RDBRow();
@@ -94,11 +93,11 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             if (reftype === 'ref') {
                 const targetTable = this.db.selectTable(target);
                 const targetRow = targetTable.insert(value);
-                row.replaceRef(column, targetRow);
+                row.setRef(column, targetRow);
             } else if (reftype === 'refs') {
                 const targetTable = this.db.selectTable(target);
                 const targetRows = targetTable.insertAll(value);
-                row.addRefs(column, targetRows);
+                row.addRefs(column, ...targetRows);
             } else {
                 row.set(column, value);
             }

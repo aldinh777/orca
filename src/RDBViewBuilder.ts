@@ -14,7 +14,6 @@ export default class RDBViewBuilder {
     private _props: string[] = [];
     private _filter?: (row: RDBRow) => boolean;
     // private _sorters: [field: string, order: 'asc' | 'desc'][] = [];
-    // private _group?: string;
 
     constructor(db: RDB) {
         this._db = db;
@@ -43,9 +42,6 @@ export default class RDBViewBuilder {
         return builder;
     }
     orderBy(column: string, order: 'asc' | 'desc' = 'asc'): RDBViewBuilder {
-        throw Error('Method not implemented, yet');
-    }
-    groupBy(column: string): RDBViewBuilder {
         throw Error('Method not implemented, yet');
     }
     buildView(): RDBView {
