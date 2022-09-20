@@ -1,40 +1,43 @@
-import { StateList, StateMap } from '@aldinh777/reactive/collection';
+import { StateCollection } from '@aldinh777/reactive/collection';
+import { ColumnStructure } from './RDBTable';
 import { AQUA_TAN_DIGIT_LIMIT, randomShit } from './help';
 
-export default class RDBRow extends StateMap<any> {
-    private _ref: Map<string, RDBRow | null> = new Map();
-    private _refs: Map<string, StateList<RDBRow>> = new Map();
+export default class RDBRow extends StateCollection<string, any, void> {
+    private _columns: Map<string, ColumnStructure>;
     id: string;
 
-    constructor() {
+    constructor(columns: Map<string, ColumnStructure>) {
         super();
+        this._columns = columns;
         this.id = randomShit(AQUA_TAN_DIGIT_LIMIT);
     }
 
-    setRef(column: string, row: RDBRow | null) {
-        this._ref.set(column, row);
-    }
-    selectRef(column: string) {
-        throw Error('Method not implemented, yet!');
-    }
-    hasRef(column: string): boolean {
-        return this._ref.has(column);
-    }
-
-    addRefs(column: string, ...rows: RDBRow[]) {
-        if (!this._refs.has(column)) {
-            this._refs.set(column, new StateList());
+    get(colname: string): any {
+        const column = this._columns.get(colname);
+        if (!column) {
+            throw Error(`invalid column '${colname}' accessing from row`);
         }
-        const list = this._refs.get(column) as StateList<RDBRow>;
-        list.push(...rows);
+        return column.values.get(this);
     }
-    deleteRefs(filter: (ref: any) => boolean) {
-        throw Error('Method not implemented, yet!');
+    set(colname: string, value: any): this {
+        const column = this._columns.get(colname);
+        if (!column) {
+            throw Error(`invalid column '${colname}' accessing from row`);
+        }
+        const oldvalue = column.values.get(this);
+        column.values.set(this, value);
+        for (const upd of this._upd) {
+            upd(colname, value, oldvalue);
+        }
+        return this;
     }
-    selectRefs(filter: (ref: any) => boolean) {
-        throw Error('Method not implemented, yet!');
+    has(colname: string): boolean {
+        return this._columns.has(colname);
     }
-    hasRefs(collumn: string): boolean {
-        return this._refs.has(collumn);
+    eachColumn(callback: (name: string, value: any) => any): void {
+        this._columns.forEach((column, name) => {
+            const value = column.values.get(this);
+            callback(name, value);
+        });
     }
 }

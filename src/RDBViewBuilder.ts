@@ -134,7 +134,7 @@ export default class RDBViewBuilder {
     }
     private static selectAll(row: RDBRow, ob: any) {
         ob.id = row.id;
-        row.raw.forEach((value, key) => {
+        row.eachColumn((key, value) => {
             const st = new State(value);
             ob[key] = st;
         });

@@ -5,22 +5,30 @@ import RDBViewBuilder, { RDBView } from './RDBViewBuilder';
 export default class RDB {
     private _tables: Map<string, RDBTable> = new Map();
     private _tablenames: WeakMap<RDBTable, string> = new WeakMap();
+    private _refwaiters: Map<string, State<RDBTable | string>[]> = new Map();
     query: RDBViewBuilder = new RDBViewBuilder(this);
 
     createTable(name: string, structure: object): RDBTable {
         if (!this._tables.has(name)) {
-            const tb = new RDBTable(this, structure);
-            this._tables.set(name, tb);
-            this._tablenames.set(tb, name);
-            return tb;
+            const table = new RDBTable(this, structure);
+            this._tables.set(name, table);
+            this._tablenames.set(table, name);
+            if (this._refwaiters.has(name)) {
+                const waitlist = this._refwaiters.get(name);
+                waitlist?.forEach((tableState) => {
+                    tableState.setValue(table);
+                });
+                this._refwaiters.delete(name);
+            }
+            return table;
         } else {
             throw Error(`attempting to recreate an already existing table '${name}'.`);
         }
     }
     selectTable(name: string): RDBTable {
-        const tb = this._tables.get(name);
-        if (tb) {
-            return tb;
+        const table = this._tables.get(name);
+        if (table) {
+            return table;
         } else {
             throw Error(`inable to select non existing table '${name}'.`);
         }
@@ -61,6 +69,20 @@ export default class RDB {
     }
     getTableName(table: RDBTable): string | undefined {
         return this._tablenames.get(table);
+    }
+    getTableRefference(name: string): State<RDBTable | string> {
+        const table = this._tables.get(name);
+        const tableState = new State(name as RDBTable | string);
+        if (table) {
+            tableState.setValue(table);
+        } else {
+            if (!this._refwaiters.has(name)) {
+                this._refwaiters.set(name, []);
+            }
+            const waitlist = this._refwaiters.get(name);
+            waitlist?.push(tableState);
+        }
+        return tableState;
     }
     static viewToObject(view: RDBView): any {
         return view.raw.map((o) => {

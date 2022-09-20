@@ -5,29 +5,27 @@ describe('Reactive Database', () => {
     const sampleStructure = {
         name: 'string',
         age: 'number',
-        randomShit: 'string?',
-        randomNumber: 'number?'
+        isekaied: 'boolean'
     };
     const sampleData = [
         {
             name: 'aldi',
             age: 25,
-            randomShit: 'asadwajaskhdkajds',
-            randomNumber: 13123123
+            isekaied: true
         },
         {
             name: 'nina',
             age: 13,
-            randomShit: 'sasaladla'
+            isekaied: false
         },
         {
             name: 'bayu',
-            age: 32,
-            randomNumber: 123123123
+            age: 32
         },
         {
             name: 'yudha',
-            age: 15
+            age: 15,
+            isekaied: true
         }
     ];
     describe('Table Operations', () => {
