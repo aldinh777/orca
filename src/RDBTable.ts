@@ -8,25 +8,26 @@ export interface TableStructure {
 
 export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> {
     db: RDB;
-    name: string;
     structure: TableStructure = {};
     private _verifier: Map<string, (value: any) => boolean> = new Map();
 
-    constructor(db: RDB, name: string, structure: object) {
+    constructor(db: RDB, structure: object) {
         super();
         this.db = db;
-        this.name = name;
         this.raw = [];
         for (const column in structure) {
             const type: string = (structure as any)[column];
             this.addColumn(column, type);
         }
     }
+    getName() {
+        return this.db.getTableName(this);
+    }
 
     get(id: string): RDBRow | undefined {
         return this.selectRow((row) => row.get('id') === id);
     }
-    set(id: string, value: RDBRow): this {
+    set(_id: string, _value: RDBRow): this {
         throw new Error('Method not implemented, on purpose!');
     }
 
@@ -41,9 +42,8 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     return true;
                 } else {
                     throw Error(
-                        `unvalid type at column '${column}' in table ${
-                            this.name
-                        }. expected: '${expected}', reality: '${typeof value}'`
+                        `unvalid type at column '${column}' in table ${this.getName()}. ` +
+                            `expected: '${expected}', reality: '${typeof value}'`
                     );
                 }
             });
@@ -52,7 +52,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             if (reftype !== 'ref' && reftype !== 'refs') {
                 throw Error(
                     `nonvalid type '${type}' for column '${column}' ` +
-                        `when creating or altering table '${this.name}'`
+                        `when creating or altering table '${this.getName()}'`
                 );
             }
             this._verifier.set(column, (value) => {
@@ -64,7 +64,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     throw Error(
                         `this error is too confusing to explain, will do it later. ` +
                             `here some random thing as hint '${reftype}' ` +
-                            `'${JSON.stringify(value)}' '${this.name}'`
+                            `'${JSON.stringify(value)}' '${this.getName()}'`
                     );
                 }
             });
@@ -83,7 +83,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             const verify = this._verifier.get(column);
             if (!verify) {
                 throw Error(
-                    `imvalid column '${column}' when insert into table '${this.name}'\n` +
+                    `imvalid column '${column}' when insert into table '${this.getName()}'\n` +
                         `=== the object in question ===\n${JSON.stringify(o, null, 2)}\n` +
                         `=== expected structure ===\n${JSON.stringify(this.structure, null, 2)}`
                 );
@@ -108,13 +108,13 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             if (reftype === 'ref' || reftype === 'refs') {
                 if (reftype === 'ref' && !row.hasRef(column)) {
                     throw Error(
-                        `this is mandatory refference, empty not allowed '${this.name}':'${column}'\n` +
+                        `this is mandatory refference, empty not allowed '${this.getName()}':'${column}'\n` +
                             `=== to be inserted ===\n` +
                             `${JSON.stringify(o, null, 2)}`
                     );
                 } else if (reftype === 'refs' && !row.hasRefs(column)) {
                     throw Error(
-                        `this is mandatory refferences, empty not allowed '${this.name}':'${column}'\n` +
+                        `this is mandatory refferences, empty not allowed '${this.getName()}':'${column}'\n` +
                             `=== to be inserted ===\n` +
                             `${JSON.stringify(o, null, 2)}`
                     );
@@ -126,7 +126,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                         row.set(column, undefined);
                     } else {
                         throw Error(
-                            `pls fill column '${column}' bcs it's mandatory for when insert into table '${this.name}'\n` +
+                            `pls fill column '${column}' bcs it's mandatory for when insert into table '${this.getName()}'\n` +
                                 `=== the object in question ===\n${JSON.stringify(o, null, 2)}\n` +
                                 `=== expected structure ===\n${JSON.stringify(
                                     this.structure,
@@ -142,14 +142,14 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             const verify = this._verifier.get(column);
             if (!verify) {
                 throw Error(
-                    `imvalid column '${column}' when update row from table '${this.name}', but how that possible??`
+                    `imvalid column '${column}' when update row from table '${this.getName()}', but how that possible??`
                 );
             }
             verify(value);
         });
         row.onResize((_, column) => {
             throw Error(
-                `illegal action! attempt to add or delete collumn '${column}' in table '${this.name}'.\n` +
+                `illegal action! attempt to add or delete collumn '${column}' in table '${this.getName()}'.\n` +
                     `===========================================================\n` +
                     `==========     !!! THOU HATH BEEN WARNED !!!     ==========\n` +
                     `===========================================================\n` +
