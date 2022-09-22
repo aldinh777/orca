@@ -124,7 +124,6 @@ export default class RDBViewBuilder {
                 } else if (prop === 'id') {
                     cloneData.id = row.id;
                 } else {
-                    // if (prop === '*.*')
                     if (!row.has(prop)) {
                         throw Error(
                             `not valid column '${prop}' to select from table '${this._table}'`

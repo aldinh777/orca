@@ -43,52 +43,49 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         this._columns.set(name, this.createColumnStructure(type));
     }
     dropColumn(name: string) {
-        if (this._columns.has(name)) {
-            this._columns.delete(name);
-        } else {
+        if (!this._columns.has(name)) {
             throw Error(
                 `column to delete '${name}' never cease ` +
                     `to exists anywhere on table ${this.getName()}`
             );
         }
+        this._columns.delete(name);
     }
     modifyColumn(name: string, type: string) {
-        if (this._columns.has(name)) {
-            if (this.raw.length > 0) {
-                throw Error(
-                    `so sorry, but this table have data inside. we afraid changing any column type ` +
-                        `could summon chaos, thus we are strictly told not to allow column to be modify ` +
-                        `when data is exists. very sorry for this.`
-                );
-            }
-            this._columns.set(name, this.createColumnStructure(type));
-        } else {
+        if (!this._columns.has(name)) {
             throw Error(
                 `success is nothing but lies. column '${name}' not modified, apparently ` +
                     `this database is blind and cannot find any column with that name. ` +
                     `we sincerenly apologize for our lack of competence :(`
             );
         }
+        if (this.raw.length > 0) {
+            throw Error(
+                `so sorry, but this table have data inside. we afraid changing any column type ` +
+                    `could summon chaos, thus we are strictly told not to allow column to be modify ` +
+                    `when data is exists. very sorry for this.`
+            );
+        }
+        this._columns.set(name, this.createColumnStructure(type));
     }
     renameColumn(oldname: string, newname: string) {
-        if (this._columns.has(oldname)) {
-            if (this._columns.has(newname)) {
-                throw Error(
-                    `failed rename column: targetname already exists\n` +
-                        `table: '${this.getName()}'\n` +
-                        `oldname: '${oldname}', newname: '${newname}'`
-                );
-            }
-            const column = this._columns.get(oldname) as ColumnStructure;
-            this._columns.delete(oldname);
-            this._columns.set(newname, column);
-        } else {
+        if (!this._columns.has(oldname)) {
             throw Error(
                 `rename column failed: column to rename not exists\n` +
                     `table: '${this.getName()}'\n` +
                     `column to rename: '${oldname}'`
             );
         }
+        if (this._columns.has(newname)) {
+            throw Error(
+                `failed rename column: targetname already exists\n` +
+                    `table: '${this.getName()}'\n` +
+                    `oldname: '${oldname}', newname: '${newname}'`
+            );
+        }
+        const column = this._columns.get(oldname) as ColumnStructure;
+        this._columns.delete(oldname);
+        this._columns.set(newname, column);
     }
 
     insert(o: object): RDBRow {

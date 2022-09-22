@@ -41,36 +41,36 @@ export default class RDBRow extends StateCollection<string, any, void> {
     }
     addRefs(colname: string, ...rows: RDBRow[]) {
         const { type, ref, values } = this.getColumn(colname);
-        if (type === 'refs' && ref) {
-            const table = ref.getValue();
-            if (table instanceof RDBTable) {
-                const refs = values.get(this) as StateList<RDBRow>;
-                for (const row of rows) {
-                    if (table.hasRow(row)) {
-                        refs.push(row);
-                    } else {
-                        throw Error(`table row mismatch mf!`);
-                    }
-                }
-            } else {
-                throw Error(`its just error wtf!`);
-            }
-        } else {
+        if (type !== 'refs' || !ref) {
             throw Error(`fail adding refferences, reason unclear`);
+        }
+        if (!(ref instanceof State)) {
+            throw Error(`unresolved refferences`);
+        }
+        const table = ref.getValue();
+        if (!(table instanceof RDBTable)) {
+            throw Error(`its just error wtf!`);
+        }
+        const refs = values.get(this) as StateList<RDBRow>;
+        for (const row of rows) {
+            if (table.hasRow(row)) {
+                refs.push(row);
+            } else {
+                throw Error(`table row mismatch wtf!`);
+            }
         }
     }
     deleteRefs(colname: string, filter: (row: RDBRow) => boolean) {
         const { type, values } = this.getColumn(colname);
-        if (type === 'refs') {
-            const refs = values.get(this) as StateList<RDBRow>;
-            const rawlist = refs.raw;
-            const dellist = rawlist.filter(filter);
-            for (const ref of dellist) {
-                const index = rawlist.indexOf(ref);
-                refs.splice(index, 1);
-            }
-        } else {
+        if (type !== 'refs') {
             throw Error(`fail deleteing refferences, reason unclear`);
+        }
+        const refs = values.get(this) as StateList<RDBRow>;
+        const rawlist = refs.raw;
+        const dellist = rawlist.filter(filter);
+        for (const ref of dellist) {
+            const index = rawlist.indexOf(ref);
+            refs.splice(index, 1);
         }
     }
     eachColumn(callback: (name: string, value: any) => any): void {
@@ -82,10 +82,9 @@ export default class RDBRow extends StateCollection<string, any, void> {
 
     private getColumn(colname: string): ColumnStructure {
         const column = this._columns.get(colname);
-        if (column) {
-            return column;
-        } else {
+        if (!column) {
             throw Error(`invalid column '${colname}' accessing from row`);
         }
+        return column;
     }
 }
