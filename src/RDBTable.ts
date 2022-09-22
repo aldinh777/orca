@@ -1,5 +1,5 @@
 import { State } from '@aldinh777/reactive';
-import { StateCollection } from '@aldinh777/reactive/collection';
+import { StateCollection, StateList } from '@aldinh777/reactive/collection';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
 
@@ -35,53 +35,12 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     set(_id: string, _value: RDBRow): this {
         throw new Error('Method not implemented, on purpose!');
     }
+    hasRow(row: RDBRow) {
+        return this.raw.includes(row);
+    }
 
-    addColumn(column: string, type: string) {
-        if (type === 'string' || type === 'number' || type === 'boolean') {
-            this._columns.set(column, {
-                type: type,
-                values: new WeakMap(),
-                verify: (value) => {
-                    if (typeof value === type) {
-                        return true;
-                    } else {
-                        throw Error(
-                            `unmatching type at column '${column}' in table ${this.getName()}. ` +
-                                `expected: '${type}', reality: '${typeof value}'`
-                        );
-                    }
-                }
-            });
-        } else {
-            const [refftype, refference] = type.split(':');
-            if (refftype === 'ref' || refftype === 'refs') {
-                this._columns.set(column, {
-                    type: refftype,
-                    values: new WeakMap(),
-                    ref: this._db.getTableRefference(refference),
-                    verify: (value) => {
-                        if (refftype === 'ref' && typeof value === 'object') {
-                            return true;
-                        } else if (refftype === 'refs' && value instanceof Array) {
-                            return true;
-                        } else {
-                            throw Error(
-                                `this error is too confusing to explain, will think it later. ` +
-                                    `in the meantime, here some random thing as hint \n` +
-                                    `type => '${refftype}'\n` +
-                                    `inserted => ${JSON.stringify(value, null, 2)}\n` +
-                                    `current table => '${this.getName()}'`
-                            );
-                        }
-                    }
-                });
-            } else {
-                throw Error(
-                    `nonvalid type '${type}' for column '${column}' ` +
-                        `when creating or altering table '${this.getName()}'`
-                );
-            }
-        }
+    addColumn(name: string, type: string) {
+        this._columns.set(name, this.createColumnStructure(type));
     }
     dropColumn(name: string) {
         if (this._columns.has(name)) {
@@ -93,7 +52,24 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             );
         }
     }
-    modifyColumn(name: string, type: string) {}
+    modifyColumn(name: string, type: string) {
+        if (this._columns.has(name)) {
+            if (this.raw.length > 0) {
+                throw Error(
+                    `so sorry, but this table have data inside. we afraid changing any column type ` +
+                        `could summon chaos, thus we are strictly told not to allow column to be modify ` +
+                        `when data is exists. very sorry for this.`
+                );
+            }
+            this._columns.set(name, this.createColumnStructure(type));
+        } else {
+            throw Error(
+                `success is nothing but lies. column '${name}' not modified, apparently ` +
+                    `this database is blind and cannot find any column with that name. ` +
+                    `we sincerenly apologize for our lack of competence :(`
+            );
+        }
+    }
     renameColumn(oldname: string, newname: string) {
         if (this._columns.has(oldname)) {
             if (this._columns.has(newname)) {
@@ -144,8 +120,29 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                             `waiter: '${this.getName()}':'${colname}'`
                     );
                 }
-                const targetRow = type === 'ref' ? table.insert(value) : table.insertAll(value);
-                values.set(row, targetRow);
+                if (type === 'ref') {
+                    if (!table.hasRow(value)) {
+                        throw Error('table mismatch when setting reference value');
+                    }
+                    const ref = table.insert(value);
+                    const refState = new State(ref) as State<RDBRow | null>;
+                    values.set(row, refState);
+                    table.onDelete((_, deleted) => {
+                        if (deleted === refState.getValue()) {
+                            refState.setValue(null);
+                        }
+                    });
+                } else if (type === 'refs') {
+                    const refs = table.insertAll(value);
+                    const refferences = new StateList(refs);
+                    values.set(row, refferences);
+                    table.onDelete((_, deleted) => {
+                        const index = refferences.raw.indexOf(deleted);
+                        if (index !== -1) {
+                            refferences.splice(index, 1);
+                        }
+                    });
+                }
             } else {
                 values.set(row, value);
             }
@@ -159,7 +156,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                         values.set(row, null);
                         break;
                     case 'refs':
-                        values.set(row, []);
+                        values.set(row, new StateList());
                         break;
                     case 'string':
                         values.set(row, '');
@@ -227,5 +224,54 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             }
         }
         return rows;
+    }
+
+    private createColumnStructure(type: string): ColumnStructure {
+        if (type === 'string' || type === 'number' || type === 'boolean') {
+            return {
+                type: type,
+                values: new WeakMap(),
+                verify: (value) => {
+                    if (typeof value === type) {
+                        return true;
+                    } else {
+                        throw Error(
+                            `unmatching type when setting value. \n` +
+                                `expected: '${type}', reality: '${typeof value}'`
+                        );
+                    }
+                }
+            };
+        } else {
+            const [refftype, refference] = type.split(':');
+            if (refftype === 'ref') {
+                return {
+                    type: refftype,
+                    values: new WeakMap(),
+                    ref: this._db.getTableRefference(refference),
+                    verify: (value) => {
+                        if (value instanceof RDBRow || value === null) {
+                            return true;
+                        } else {
+                            throw Error(`invalid refference type. allowed: RDBRow | null`);
+                        }
+                    }
+                };
+            } else if (refftype === 'refs') {
+                return {
+                    type: refftype,
+                    values: new WeakMap(),
+                    ref: this._db.getTableRefference(refference),
+                    verify: () => {
+                        throw Error(
+                            `setting references through method '[row].set()' is not allowed.` +
+                                `use '[row].addRefs()' or '[row].deleteRefs()' instead to modify refferences`
+                        );
+                    }
+                };
+            } else {
+                throw Error(`nonvalid type '${type}' when creating column`);
+            }
+        }
     }
 }

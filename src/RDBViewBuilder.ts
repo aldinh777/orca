@@ -13,7 +13,7 @@ export default class RDBViewBuilder {
     private _table?: string;
     private _props: string[] = [];
     private _filter?: (row: RDBRow) => boolean;
-    // private _sorters: [field: string, order: 'asc' | 'desc'][] = [];
+    private _sorters?: [field: string, order: 'asc' | 'desc'];
 
     constructor(db: RDB) {
         this._db = db;
@@ -42,7 +42,9 @@ export default class RDBViewBuilder {
         return builder;
     }
     orderBy(column: string, order: 'asc' | 'desc' = 'asc'): RDBViewBuilder {
-        throw Error('Method not implemented, yet');
+        const builder = this.clone();
+        builder._sorters = [column, order];
+        return builder;
     }
     buildView(): RDBView {
         if (!this._table) {
@@ -52,10 +54,10 @@ export default class RDBViewBuilder {
         const view: StateList<RDBViewRow> = new StateList();
         const objMapper = new WeakMap();
         table.selectRows('*', (row) => {
-            RDBViewBuilder.watchRowUpdate(objMapper, row, view, this);
+            this.watchRowUpdate(objMapper, row, view);
         });
         table.onInsert((_, inserted) => {
-            RDBViewBuilder.watchRowUpdate(objMapper, inserted, view, this);
+            this.watchRowUpdate(objMapper, inserted, view);
         });
         table.onDelete((_, deleted) => {
             if (objMapper.has(deleted)) {
@@ -65,38 +67,45 @@ export default class RDBViewBuilder {
         return view;
     }
 
-    private static watchRowUpdate(
-        objMapper: WeakMap<RDBRow, any>,
-        row: RDBRow,
-        view: RDBView,
-        builder: RDBViewBuilder
-    ) {
-        const { _filter } = builder;
-        if (_filter ? _filter(row) : true) {
-            RDBViewBuilder.insertItemToView(objMapper, row, view, builder);
+    private watchRowUpdate(objMapper: WeakMap<RDBRow, any>, row: RDBRow, view: RDBView) {
+        if (this._filter ? this._filter(row) : true) {
+            this.insertItemToView(objMapper, row, view);
         }
         row.onUpdate(() => {
             if (objMapper.has(row)) {
-                if (_filter ? !_filter(row) : false) {
+                if (this._filter ? !this._filter(row) : false) {
                     RDBViewBuilder.removeItemFromView(objMapper, row, view);
                 }
             } else {
-                if (_filter ? _filter(row) : true) {
-                    RDBViewBuilder.insertItemToView(objMapper, row, view, builder);
+                if (this._filter ? this._filter(row) : true) {
+                    this.insertItemToView(objMapper, row, view);
                 }
             }
         });
     }
-    private static insertItemToView(
-        objMapper: WeakMap<RDBRow, any>,
-        row: RDBRow,
-        view: RDBView,
-        builder: RDBViewBuilder
-    ) {
-        const { _props } = builder;
-        const cloneData = RDBViewBuilder.copySelected(row, _props, builder);
+    private insertItemToView(objMapper: WeakMap<RDBRow, any>, row: RDBRow, view: RDBView) {
+        const cloneData = this.copySelected(row, this._props);
         objMapper.set(row, cloneData);
-        view.push(cloneData);
+        if (this._sorters) {
+            const [prop, asc] = this._sorters;
+            let flagDone = false;
+            for (let i = 0; i < view.raw.length; i++) {
+                const item = view.get(i) as any;
+                const cloneValue = cloneData[prop].getValue();
+                const itemValue = item[prop].getValue();
+                const compare = asc === 'asc' ? cloneValue < itemValue : cloneValue > itemValue;
+                if (compare) {
+                    view.splice(i, 0, cloneData);
+                    flagDone = true;
+                    break;
+                }
+            }
+            if (!flagDone) {
+                view.push(cloneData);
+            }
+        } else {
+            view.push(cloneData);
+        }
     }
     private static removeItemFromView(objMapper: WeakMap<RDBRow, any>, row: RDBRow, view: RDBView) {
         const otwdelete = objMapper.get(row);
@@ -104,7 +113,7 @@ export default class RDBViewBuilder {
         objMapper.delete(row);
         view.splice(indexdelete, 1);
     }
-    private static copySelected(row: RDBRow, props: string[], builder: RDBViewBuilder): any {
+    private copySelected(row: RDBRow, props: string[]): any {
         const cloneData: any = {};
         if (props.length === 0) {
             RDBViewBuilder.selectAll(row, cloneData);
@@ -118,7 +127,7 @@ export default class RDBViewBuilder {
                     // if (prop === '*.*')
                     if (!row.has(prop)) {
                         throw Error(
-                            `not valid column '${prop}' to select from table '${builder._table}'`
+                            `not valid column '${prop}' to select from table '${this._table}'`
                         );
                     }
                     cloneData[prop] = new State(row.get(prop));

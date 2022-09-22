@@ -84,7 +84,7 @@ export default class RDB {
         }
         return tableState;
     }
-    static viewToObject(view: RDBView): any {
+    static freezeView(view: RDBView): any {
         return view.raw.map((o) => {
             const p: any = {};
             for (const k in o) {
@@ -97,8 +97,5 @@ export default class RDB {
             }
             return p;
         });
-    }
-    static displayView(view: RDBView): any {
-        console.log(RDB.viewToObject(view));
     }
 }

@@ -70,7 +70,7 @@ describe('Reactive Database', () => {
         });
         it('select from', () => {
             const users = db.query.select('name').from('user').buildView();
-            const result = RDB.viewToObject(users);
+            const result = RDB.freezeView(users);
             expect(result).toEqual(
                 sampleData.map((s) => ({
                     name: s.name
@@ -83,14 +83,14 @@ describe('Reactive Database', () => {
                 .from('user')
                 .where((row) => row.get('age') > 20)
                 .buildView();
-            const result = RDB.viewToObject(users);
+            const result = RDB.freezeView(users);
             expect(result).toEqual(
                 sampleData.filter((s) => s.age > 20).map((s) => ({ name: s.name, age: s.age }))
             );
         });
-        it.skip('select from orderby', () => {
-            const users = db.query.select('name', 'age').from('user').orderBy('age', 'asc');
-            expect(RDB.viewToObject(users)[0].name).toBe('nina');
+        it('select from orderby', () => {
+            const users = db.query.select('name', 'age').from('user').orderBy('age', 'asc').buildView();
+            expect(RDB.freezeView(users)[0].name).toBe('nina');
         });
         it('view observability', () => {
             const users = db.query
@@ -103,22 +103,22 @@ describe('Reactive Database', () => {
                 .map((s) => ({ name: s.name, age: s.age }));
             const afterNinaAging = beforeNinaAging.concat({ name: 'nina', age: 27 });
             const thenBayuShrinking = afterNinaAging.filter((s) => s.name !== 'bayu');
-            expect(RDB.viewToObject(users)).toEqual(beforeNinaAging);
+            expect(RDB.freezeView(users)).toEqual(beforeNinaAging);
             db.selectTable('user').selectRow(
                 (row) => row.get('name') === 'nina',
                 (row) => row.set('age', 27)
             );
-            expect(RDB.viewToObject(users)).toEqual(afterNinaAging);
+            expect(RDB.freezeView(users)).toEqual(afterNinaAging);
             db.selectTable('user').selectRow(
                 (row) => row.get('name') === 'bayu',
                 (row) => row.set('age', 10)
             );
-            expect(RDB.viewToObject(users)).toEqual(thenBayuShrinking);
+            expect(RDB.freezeView(users)).toEqual(thenBayuShrinking);
             db.selectTable('user').selectRow(
                 (row) => row.get('name') === 'nina',
                 (row) => row.set('name', 'bambank')
             );
-            expect(RDB.viewToObject(users)[1].name).toBe('bambank');
+            expect(RDB.freezeView(users)[1].name).toBe('bambank');
         });
     });
 });
