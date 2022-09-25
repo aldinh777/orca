@@ -173,9 +173,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             }
         });
         this.raw.push(row);
-        for (const ins of this._ins) {
-            ins(row.id, row);
-        }
+        this.trigger('ins', row.id, row);
         return row;
     }
     insertAll(obs: object[]): RDBRow[] {
@@ -191,9 +189,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         for (const delrow of dellist) {
             const index = rawlist.indexOf(delrow);
             this.raw.splice(index, 1);
-            for (const del of this._del) {
-                del(delrow.id, delrow);
-            }
+            this.trigger('del', delrow.id, delrow);
         }
     }
     selectRow(
