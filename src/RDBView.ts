@@ -6,16 +6,17 @@ import RDBTable from './RDBTable';
 export interface RDBViewRow {
     [key: string]: State<any>;
 }
+export type ViewQuery = string | ((row: RDBRow) => boolean) | ViewQuery[];
 
 export default class RDBView extends StateList<any> {
-    private _props: string[];
+    private _props: ViewQuery[];
     private _filter?: (row: RDBRow) => boolean;
     private _sorters?: [field: string, order: 'asc' | 'desc'];
     private _objMapper = new WeakMap();
 
     constructor(
         table: RDBTable,
-        props: string[],
+        props: ViewQuery[],
         filter?: (row: RDBRow) => boolean,
         sorters?: [string, 'asc' | 'desc']
     ) {
@@ -90,15 +91,21 @@ export default class RDBView extends StateList<any> {
             this.selectAll(row, cloneData);
         } else {
             for (const prop of this._props) {
-                if (prop === '*') {
-                    this.selectAll(row, cloneData);
-                } else if (prop === 'id') {
-                    cloneData.id = row.id;
-                } else {
-                    if (!row.has(prop)) {
-                        throw Error(`not valid column '${prop}'`);
+                if (typeof prop === 'string') {
+                    if (prop === '*') {
+                        this.selectAll(row, cloneData);
+                    } else if (prop === 'id') {
+                        cloneData.id = row.id;
+                    } else {
+                        if (!row.has(prop)) {
+                            throw Error(`not valid column '${prop}'`);
+                        }
+                        cloneData[prop] = new State(row.get(prop));
                     }
-                    cloneData[prop] = new State(row.get(prop));
+                } else if (typeof prop === 'function') {
+                    // here goes filter for subview
+                } else {
+                    // here goes queries for subview
                 }
             }
         }

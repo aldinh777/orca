@@ -101,59 +101,38 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                 );
             }
             const { type, verify, values, ref } = column;
-            verify(value);
             if (type === 'ref' || type === 'refs') {
-                if (!ref) {
-                    throw Error(
-                        `somehow table refference lost ` +
-                            `at table '${this.getName()}' column $'{colname}'`
-                    );
-                }
-                const table = ref.getValue();
-                if (typeof table === 'string') {
-                    throw Error(
-                        `table refference not yet resolved. ` +
-                            `still waiting for table '${table}' to be created. \n` +
-                            `waiter: '${this.getName()}':'${colname}'`
-                    );
-                }
+                const table = this.validateRefTable(ref);
                 if (type === 'ref') {
-                    if (!table.hasRow(value)) {
-                        throw Error('table mismatch when setting reference value');
+                    if (typeof value !== 'object') {
+                        throw Error(`invalid type ref colum '${colname}' must object`);
                     }
                     const ref = table.insert(value);
-                    const refState = new State(ref) as State<RDBRow | null>;
+                    const refState = this.createRef(table, ref);
                     values.set(row, refState);
-                    table.onDelete((_, deleted) => {
-                        if (deleted === refState.getValue()) {
-                            refState.setValue(null);
-                        }
-                    });
                 } else if (type === 'refs') {
+                    if (!(value instanceof Array)) {
+                        throw Error(`invalud type refs sorri fot colum '${colname}' must array`);
+                    }
                     const refs = table.insertAll(value);
-                    const refferences = new StateList(refs);
+                    const refferences = this.createRefs(table, refs);
                     values.set(row, refferences);
-                    table.onDelete((_, deleted) => {
-                        const index = refferences.raw.indexOf(deleted);
-                        if (index !== -1) {
-                            refferences.splice(index, 1);
-                        }
-                    });
                 }
             } else {
+                verify(value);
                 values.set(row, value);
             }
         }
         // Iterate structure ensure everything mandatory is filled
         this._columns.forEach((column) => {
-            const { type, values } = column;
+            const { type, values, ref } = column;
             if (!values.has(row)) {
                 switch (type) {
                     case 'ref':
-                        values.set(row, null);
+                        values.set(row, this.createRef(this.validateRefTable(ref)));
                         break;
                     case 'refs':
-                        values.set(row, new StateList());
+                        values.set(row, this.createRefs(this.validateRefTable(ref), []));
                         break;
                     case 'string':
                         values.set(row, '');
@@ -219,35 +198,78 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         return rows;
     }
 
+    private validateRefTable(ref: State<string | RDBTable> | undefined): RDBTable {
+        if (!ref) {
+            throw Error(
+                `somehow table refference lost ` +
+                    `at table '${this.getName()}' column $'{colname}'`
+            );
+        }
+        const table = ref.getValue();
+        if (typeof table === 'string') {
+            throw Error(
+                `table refference not yet resolved. ` +
+                    `still waiting for table '${table}' to be created. \n` +
+                    `waiter: '${this.getName()}'`
+            );
+        }
+        return table;
+    }
+
+    private createRef(table: RDBTable, ref?: RDBRow): State<RDBRow | null> {
+        const refState = new State(ref || null);
+        table.onDelete((_, deleted) => {
+            if (deleted === refState.getValue()) {
+                refState.setValue(null);
+            }
+        });
+        return refState;
+    }
+    private createRefs(table: RDBTable, refs: RDBRow[]): StateList<RDBRow> {
+        const refflist = new StateList(refs);
+        table.onDelete((_, deleted) => {
+            const index = refflist.raw.indexOf(deleted);
+            if (index !== -1) {
+                refflist.splice(index, 1);
+            }
+        });
+        return refflist;
+    }
     private createColumnStructure(type: string): ColumnStructure {
         if (type === 'string' || type === 'number' || type === 'boolean') {
             return {
                 type: type,
                 values: new WeakMap(),
                 verify: (value) => {
-                    if (typeof value === type) {
-                        return true;
-                    } else {
+                    if (typeof value !== type) {
                         throw Error(
                             `unmatching type when setting value. \n` +
                                 `expected: '${type}', reality: '${typeof value}'`
                         );
                     }
+                    return true;
                 }
             };
         } else {
             const [refftype, refference] = type.split(':');
             if (refftype === 'ref') {
+                const ref = this._db.getTableRefference(refference);
                 return {
                     type: refftype,
                     values: new WeakMap(),
-                    ref: this._db.getTableRefference(refference),
-                    verify: (value) => {
-                        if (value instanceof RDBRow || value === null) {
-                            return true;
-                        } else {
+                    ref: ref,
+                    verify(value) {
+                        const table = ref.getValue();
+                        if (!(table instanceof RDBTable)) {
+                            throw Error(`failed getting refference`);
+                        }
+                        if (!(value instanceof RDBRow || value === null)) {
                             throw Error(`invalid refference type. allowed: RDBRow | null`);
                         }
+                        if (value && !table.hasRow(value)) {
+                            throw Error(`row as reference probably deleted from it's table`);
+                        }
+                        return true;
                     }
                 };
             } else if (refftype === 'refs') {
@@ -255,7 +277,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     type: refftype,
                     values: new WeakMap(),
                     ref: this._db.getTableRefference(refference),
-                    verify: () => {
+                    verify() {
                         throw Error(
                             `setting references through method '[row].set()' is not allowed.` +
                                 `use '[row].addRefs()' or '[row].deleteRefs()' instead to modify refferences`

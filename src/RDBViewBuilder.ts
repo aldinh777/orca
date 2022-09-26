@@ -1,11 +1,11 @@
 import RDB from './RDB';
 import RDBRow from './RDBRow';
-import RDBView from './RDBView';
+import RDBView, { ViewQuery } from './RDBView';
 
 export default class RDBViewBuilder {
     private _db: RDB;
     private _table?: string;
-    private _props: string[] = [];
+    private _props: ViewQuery[] = [];
     private _filter?: (row: RDBRow) => boolean;
     private _sorters?: [field: string, order: 'asc' | 'desc'];
 
@@ -25,7 +25,7 @@ export default class RDBViewBuilder {
         builder._table = table;
         return builder;
     }
-    select(...columns: string[]): RDBViewBuilder {
+    select(...columns: ViewQuery[]): RDBViewBuilder {
         const builder = this.clone();
         builder._props = columns;
         return builder;

@@ -19,7 +19,14 @@ export default class RDBRow extends StateCollection<string, any, void> {
     }
     set(colname: string, value: any): this {
         const { values, type, verify } = this.getColumn(colname);
-        verify(value);
+        if (!verify(value)) {
+            throw Error(
+                `this shit is programmed to never happen and somehow ` +
+                    `you make the impossible to happen what the f*ck? ` +
+                    `i have zero idea how this is even possible, this is wicked. ` +
+                    `congratulation anyway`
+            );
+        }
         const oldvalue = values.get(this);
         if (type === 'ref') {
             if (oldvalue instanceof State) {
