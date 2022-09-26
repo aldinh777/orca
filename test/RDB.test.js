@@ -89,10 +89,14 @@ describe('Reactive Database', () => {
             );
         });
         it('select from orderby', () => {
-            const users = db.query.select('name', 'age').from('user').orderBy('age', 'asc').buildView();
+            const users = db.query
+                .select('name', 'age')
+                .from('user')
+                .orderBy('age', 'asc')
+                .buildView();
             expect(RDB.freezeView(users)[0].name).toBe('nina');
         });
-        it('view observability', () => {
+        it('observable depend on rows', () => {
             const users = db.query
                 .select('name', 'age')
                 .from('user')
@@ -119,6 +123,23 @@ describe('Reactive Database', () => {
                 (row) => row.set('name', 'bambank')
             );
             expect(RDB.freezeView(users)[1].name).toBe('bambank');
+            // reset user table
+            db.selectTable('user').delete(() => true);
+            db.selectTable('user').insertAll(sampleData);
+        });
+        it('observable depend on rows order by', () => {
+            const users = db.query.select('name', 'age').from('user').orderBy('age').buildView();
+            expect(RDB.freezeView(users)[0].name).toBe('nina');
+            expect(RDB.freezeView(users)[0].age).toBe(13);
+            db.selectTable('user').selectRow(
+                (row) => row.get('name') === 'nina',
+                (row) => row.set('age', 45)
+            );
+            expect(RDB.freezeView(users)[0].name).toBe('yudha');
+            expect(RDB.freezeView(users)[0].age).toBe(15);
+            // reset user table
+            db.selectTable('user').delete(() => true);
+            db.selectTable('user').insertAll(sampleData);
         });
     });
 });

@@ -61,7 +61,7 @@ export default class RDBViewBuilder {
         });
         table.onDelete((_, deleted) => {
             if (objMapper.has(deleted)) {
-                RDBViewBuilder.removeItemFromView(objMapper, deleted, view);
+                this.removeItemFromView(objMapper, deleted, view);
             }
         });
         return view;
@@ -71,21 +71,23 @@ export default class RDBViewBuilder {
         if (this._filter ? this._filter(row) : true) {
             this.insertItemToView(objMapper, row, view);
         }
-        row.onUpdate(() => {
+        row.onUpdate((key) => {
             if (objMapper.has(row)) {
                 if (this._filter ? !this._filter(row) : false) {
-                    RDBViewBuilder.removeItemFromView(objMapper, row, view);
+                    this.removeItemFromView(objMapper, row, view);
+                } else if (this._sorters && this._sorters[0] === key) {
+                    this.removeItemFromView(objMapper, row, view);
+                    this.insertItemToView(objMapper, row, view);
                 }
             } else {
-                if (this._filter ? this._filter(row) : true) {
+                if (this._filter && this._filter(row)) {
                     this.insertItemToView(objMapper, row, view);
                 }
             }
         });
     }
-    private insertItemToView(objMapper: WeakMap<RDBRow, any>, row: RDBRow, view: RDBView) {
-        const cloneData = this.copySelected(row, this._props);
-        objMapper.set(row, cloneData);
+    private insertItemToView(objMapper: WeakMap<RDBRow, RDBViewRow>, row: RDBRow, view: RDBView) {
+        const cloneData = objMapper.get(row) || this.copySelected(objMapper, row);
         if (this._sorters) {
             const [prop, asc] = this._sorters;
             let flagDone = false;
@@ -107,20 +109,20 @@ export default class RDBViewBuilder {
             view.push(cloneData);
         }
     }
-    private static removeItemFromView(objMapper: WeakMap<RDBRow, any>, row: RDBRow, view: RDBView) {
+    private removeItemFromView(objMapper: WeakMap<RDBRow, any>, row: RDBRow, view: RDBView) {
         const otwdelete = objMapper.get(row);
         const indexdelete = view.raw.indexOf(otwdelete);
         objMapper.delete(row);
         view.splice(indexdelete, 1);
     }
-    private copySelected(row: RDBRow, props: string[]): any {
+    private copySelected(objMapper: WeakMap<RDBRow, RDBViewRow>, row: RDBRow): RDBViewRow {
         const cloneData: any = {};
-        if (props.length === 0) {
-            RDBViewBuilder.selectAll(row, cloneData);
+        if (this._props.length === 0) {
+            this.selectAll(row, cloneData);
         } else {
-            for (const prop of props) {
+            for (const prop of this._props) {
                 if (prop === '*') {
-                    RDBViewBuilder.selectAll(row, cloneData);
+                    this.selectAll(row, cloneData);
                 } else if (prop === 'id') {
                     cloneData.id = row.id;
                 } else {
@@ -138,9 +140,10 @@ export default class RDBViewBuilder {
                 cloneData[key].setValue(value);
             }
         });
+        objMapper.set(row, cloneData);
         return cloneData;
     }
-    private static selectAll(row: RDBRow, ob: any) {
+    private selectAll(row: RDBRow, ob: any) {
         ob.id = row.id;
         row.eachColumn((key, value) => {
             const st = new State(value);
