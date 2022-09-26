@@ -65,10 +65,8 @@ describe('Reactive Database', () => {
         });
     });
     describe('View Builder', () => {
-        it('sample data generations', () => {
-            db.createTable('user', sampleStructure).insertAll(sampleData);
-        });
         it('select from', () => {
+            db.createTable('user', sampleStructure).insertAll(sampleData);
             const users = db.query.select('name').from('user').buildView();
             const result = RDB.freezeView(users);
             expect(result).toEqual(

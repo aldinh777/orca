@@ -1,6 +1,7 @@
 import { State } from '@aldinh777/reactive';
 import RDBTable from './RDBTable';
-import RDBViewBuilder, { RDBView } from './RDBViewBuilder';
+import RDBView from './RDBView';
+import RDBViewBuilder from './RDBViewBuilder';
 
 export default class RDB {
     private _tables: Map<string, RDBTable> = new Map();
