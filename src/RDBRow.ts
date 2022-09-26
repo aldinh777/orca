@@ -36,8 +36,8 @@ export default class RDBRow extends StateCollection<string, any, void> {
             }
         } else {
             values.set(this, value);
+            this.trigger('set', colname, value, oldvalue);
         }
-        this.trigger('set', colname, value, oldvalue);
         return this;
     }
     has(colname: string): boolean {
