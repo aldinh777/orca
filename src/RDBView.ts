@@ -88,12 +88,12 @@ export default class RDBView extends StateList<any> {
     private copySelected(row: RDBRow, props: ViewQuery[], save: boolean = true): RDBViewRow {
         const cloneData: any = {};
         if (props.length === 0) {
-            this.selectAll(row, cloneData);
+            this.selectAllProps(row, cloneData);
         } else {
             for (const prop of props) {
                 if (typeof prop === 'string') {
                     if (prop === '*') {
-                        this.selectAll(row, cloneData);
+                        this.selectAllProps(row, cloneData);
                     } else if (prop === 'id') {
                         cloneData.id = row.id;
                     } else {
@@ -104,29 +104,10 @@ export default class RDBView extends StateList<any> {
                     }
                 } else {
                     const [refquery, ...refprops] = prop;
-                    const { type, ref, values } = row.getColumn(refquery);
-                    const table = ref?.getValue();
-                    if (table instanceof RDBTable) {
-                        if (type === 'ref') {
-                            const refState = values.get(row) as State<RDBRow | null>;
-                            const cloneRefState: State<any> = new State(null);
-                            const refObserver = (ref: RDBRow | null) => {
-                                if (ref === null) {
-                                    cloneRefState.setValue(null);
-                                } else {
-                                    const cloneRef = this.copySelected(ref, refprops, false);
-                                    cloneRefState.setValue(cloneRef);
-                                }
-                            };
-                            refObserver(refState.getValue());
-                            refState.onChange(refObserver);
-                            cloneData[refquery] = cloneRefState;
-                        } else if (type === 'refs') {
-                            const refsState = values.get(row) as StateList<RDBRow>;
-                            cloneData[refquery] = new RDBView(table, refprops, (row) =>
-                                refsState.raw.includes(row)
-                            );
-                        }
+                    if (refquery === '*') {
+                        this.selectAllRefs(refprops, row, cloneData);
+                    } else {
+                        this.selectRef(refquery, refprops, row, cloneData);
                     }
                 }
             }
@@ -141,7 +122,7 @@ export default class RDBView extends StateList<any> {
         }
         return cloneData;
     }
-    private selectAll(row: RDBRow, ob: any) {
+    private selectAllProps(row: RDBRow, ob: any) {
         ob.id = row.id;
         row.eachColumn((key, { type, values }) => {
             if (type !== 'ref' && type !== 'refs') {
@@ -149,5 +130,36 @@ export default class RDBView extends StateList<any> {
                 ob[key] = st;
             }
         });
+    }
+    private selectAllRefs(props: ViewQuery[], row: RDBRow, ob: any) {
+        row.eachColumn((key, { type }) => {
+            if (type === 'ref' || type === 'refs') {
+                this.selectRef(key, props, row, ob);
+            }
+        });
+    }
+    private selectRef(column: string, props: ViewQuery[], row: RDBRow, ob: any) {
+        const { type, ref, values } = row.getColumn(column);
+        const table = ref?.getValue();
+        if (table instanceof RDBTable) {
+            if (type === 'ref') {
+                const refState = values.get(row) as State<RDBRow | null>;
+                const cloneRefState: State<any> = new State(null);
+                const refObserver = (ref: RDBRow | null) => {
+                    if (ref === null) {
+                        cloneRefState.setValue(null);
+                    } else {
+                        const cloneRef = this.copySelected(ref, props, false);
+                        cloneRefState.setValue(cloneRef);
+                    }
+                };
+                refObserver(refState.getValue());
+                refState.onChange(refObserver);
+                ob[column] = cloneRefState;
+            } else if (type === 'refs') {
+                const refsState = values.get(row) as StateList<RDBRow>;
+                ob[column] = new RDBView(table, props, (row) => refsState.raw.includes(row));
+            }
+        }
     }
 }
