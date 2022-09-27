@@ -115,15 +115,79 @@ export default class RDBView extends StateList<any> {
                     const [refquery, ...refprops] = prop;
                     const [colname, deref] = refquery.split('#').reverse();
                     if (deref) {
+                        const derefMapper: WeakMap<RDBRow, RDBViewRow> = new WeakMap();
                         const derefTable = this._db.selectTable(deref);
                         const derefs: StateList<RDBViewRow> = new StateList();
-                        derefTable.selectRows('*', (row) => {});
-                        cloneData[refquery] = new RDBView(
-                            this._db,
-                            derefTable,
-                            refprops,
-                            (refrow) => refrow.hasRef(colname, row)
-                        );
+                        const watchRowRefsUpdate = (ref: RDBRow) => {
+                            const rubrub = ref.get(colname);
+                            if (rubrub instanceof State) {
+                                if (rubrub.getValue() === row) {
+                                    const ow =
+                                        derefMapper.get(ref) ||
+                                        this.copySelected(ref, refprops, derefMapper);
+                                    derefs.push(ow);
+                                }
+                                rubrub.onChange((val) => {
+                                    if (val === row) {
+                                        const ow =
+                                            derefMapper.get(ref) ||
+                                            this.copySelected(ref, refprops, derefMapper);
+                                        derefs.push(ow);
+                                    } else {
+                                        const ow = derefMapper.get(ref);
+                                        if (ow) {
+                                            const iw = derefs.raw.indexOf(ow);
+                                            if (iw !== -1) {
+                                                derefs.splice(iw, 1);
+                                            }
+                                        }
+                                    }
+                                });
+                            } else if (rubrub instanceof StateList) {
+                                if (rubrub.raw.includes(row)) {
+                                    const ow =
+                                        derefMapper.get(ref) ||
+                                        this.copySelected(ref, refprops, derefMapper);
+                                    derefs.push(ow);
+                                }
+                                rubrub.onInsert((_, inserted) => {
+                                    if (inserted === row) {
+                                        const ow =
+                                            derefMapper.get(ref) ||
+                                            this.copySelected(ref, refprops, derefMapper);
+                                        derefs.push(ow);
+                                    }
+                                });
+                                rubrub.onDelete((_, deleted) => {
+                                    if (deleted === row) {
+                                        const ow = derefMapper.get(ref);
+                                        if (ow) {
+                                            const iw = derefs.raw.indexOf(ow);
+                                            if (iw !== -1) {
+                                                derefs.splice(iw, 1);
+                                            }
+                                        }
+                                    }
+                                });
+                            } else {
+                                throw Error(`selected refs is not a ref '${colname}'`);
+                            }
+                        };
+                        derefTable.selectRows('*', (ref) => {
+                            watchRowRefsUpdate(ref);
+                        });
+                        derefTable.onInsert((_, ref) => {
+                            watchRowRefsUpdate(ref);
+                        });
+                        derefTable.onDelete((_, ref) => {
+                            const ow = derefMapper.get(ref);
+                            if (ow) {
+                                const iw = derefs.raw.indexOf(ow);
+                                if (iw !== -1) {
+                                    derefs.splice(iw, 1);
+                                }
+                            }
+                        });
                         cloneData[refquery] = derefs;
                     } else {
                         if (refquery === '*') {

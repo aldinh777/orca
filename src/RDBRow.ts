@@ -58,12 +58,14 @@ export default class RDBRow extends StateCollection<string, any, void> {
         }
         const refs = values.get(this) as StateList<RDBRow>;
         for (const row of rows) {
-            if (table.hasRow(row)) {
-                if (!refs.raw.includes(row)) {
-                    refs.push(row);
-                }
-            } else {
-                throw Error(`table row mismatch wtf!`);
+            if (!(row instanceof RDBRow)) {
+                throw Error(`type mismatch when adding ref to '${colname}'. type: '${typeof row}'`);
+            }
+            if (!table.hasRow(row)) {
+                throw Error(`table row mismatch when trying to add ref '${colname}'`);
+            }
+            if (!refs.raw.includes(row)) {
+                refs.push(row);
             }
         }
     }
