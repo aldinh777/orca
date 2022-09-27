@@ -47,7 +47,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
     addRefs(colname: string, ...rows: RDBRow[]) {
         const { type, ref, values } = this.getColumn(colname);
         if (type !== 'refs' || !ref) {
-            throw Error(`fail adding refferences, reason unclear`);
+            throw Error(`fail adding refferences, '${colname}' is not a references`);
         }
         if (!(ref instanceof State)) {
             throw Error(`unresolved refferences`);
@@ -59,7 +59,9 @@ export default class RDBRow extends StateCollection<string, any, void> {
         const refs = values.get(this) as StateList<RDBRow>;
         for (const row of rows) {
             if (table.hasRow(row)) {
-                refs.push(row);
+                if (!refs.raw.includes(row)) {
+                    refs.push(row);
+                }
             } else {
                 throw Error(`table row mismatch wtf!`);
             }
@@ -78,14 +80,24 @@ export default class RDBRow extends StateCollection<string, any, void> {
             refs.splice(index, 1);
         }
     }
-    eachColumn(callback: (name: string, value: any) => any): void {
+    hasRef(colname: string, row: RDBRow): boolean {
+        const { type, values } = this.getColumn(colname);
+        if (type === 'ref') {
+            const ref = values.get(this) as RDBRow | null;
+            return ref === row;
+        } else if (type === 'refs') {
+            const refs = values.get(this) as StateList<RDBRow>;
+            return refs.raw.includes(row);
+        } else {
+            throw Error(`column '${colname}' is not a reference`);
+        }
+    }
+    eachColumn(callback: (name: string, column: ColumnStructure) => any): void {
         this._columns.forEach((column, name) => {
-            const value = column.values.get(this);
-            callback(name, value);
+            callback(name, column);
         });
     }
-
-    private getColumn(colname: string): ColumnStructure {
+    getColumn(colname: string): ColumnStructure {
         const column = this._columns.get(colname);
         if (!column) {
             throw Error(`invalid column '${colname}' accessing from row`);

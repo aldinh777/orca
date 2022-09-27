@@ -6,7 +6,7 @@ import RDBTable from './RDBTable';
 export interface RDBViewRow {
     [key: string]: State<any>;
 }
-export type ViewQuery = string | ((row: RDBRow) => boolean) | ViewQuery[];
+export type ViewQuery = string | [string, ...ViewQuery[]];
 
 export default class RDBView extends StateList<any> {
     private _props: ViewQuery[];
@@ -57,7 +57,7 @@ export default class RDBView extends StateList<any> {
         });
     }
     private insertItem(row: RDBRow) {
-        const cloneData = this._objMapper.get(row) || this.copySelected(row);
+        const cloneData = this._objMapper.get(row) || this.copySelected(row, this._props);
         if (this._sorters) {
             const [prop, asc] = this._sorters;
             let flagDone = false;
@@ -85,12 +85,12 @@ export default class RDBView extends StateList<any> {
         this._objMapper.delete(row);
         this.splice(indexdelete, 1);
     }
-    private copySelected(row: RDBRow): RDBViewRow {
+    private copySelected(row: RDBRow, props: ViewQuery[], save: boolean = true): RDBViewRow {
         const cloneData: any = {};
-        if (this._props.length === 0) {
+        if (props.length === 0) {
             this.selectAll(row, cloneData);
         } else {
-            for (const prop of this._props) {
+            for (const prop of props) {
                 if (typeof prop === 'string') {
                     if (prop === '*') {
                         this.selectAll(row, cloneData);
@@ -102,10 +102,32 @@ export default class RDBView extends StateList<any> {
                         }
                         cloneData[prop] = new State(row.get(prop));
                     }
-                } else if (typeof prop === 'function') {
-                    // here goes filter for subview
                 } else {
-                    // here goes queries for subview
+                    const [refquery, ...refprops] = prop;
+                    const { type, ref, values } = row.getColumn(refquery);
+                    const table = ref?.getValue();
+                    if (table instanceof RDBTable) {
+                        if (type === 'ref') {
+                            const refState = values.get(row) as State<RDBRow | null>;
+                            const cloneRefState: State<any> = new State(null);
+                            const refObserver = (ref: RDBRow | null) => {
+                                if (ref === null) {
+                                    cloneRefState.setValue(null);
+                                } else {
+                                    const cloneRef = this.copySelected(ref, refprops, false);
+                                    cloneRefState.setValue(cloneRef);
+                                }
+                            };
+                            refObserver(refState.getValue());
+                            refState.onChange(refObserver);
+                            cloneData[refquery] = cloneRefState;
+                        } else if (type === 'refs') {
+                            const refsState = values.get(row) as StateList<RDBRow>;
+                            cloneData[refquery] = new RDBView(table, refprops, (row) =>
+                                refsState.raw.includes(row)
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -114,14 +136,18 @@ export default class RDBView extends StateList<any> {
                 cloneData[key].setValue(value);
             }
         });
-        this._objMapper.set(row, cloneData);
+        if (save) {
+            this._objMapper.set(row, cloneData);
+        }
         return cloneData;
     }
     private selectAll(row: RDBRow, ob: any) {
         ob.id = row.id;
-        row.eachColumn((key, value) => {
-            const st = new State(value);
-            ob[key] = st;
+        row.eachColumn((key, { type, values }) => {
+            if (type !== 'ref' && type !== 'refs') {
+                const st = new State(values.get(row));
+                ob[key] = st;
+            }
         });
     }
 }

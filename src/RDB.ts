@@ -82,17 +82,28 @@ export default class RDB {
         return tableState;
     }
     static freezeView(view: RDBView): any {
-        return view.raw.map((o) => {
-            const p: any = {};
-            for (const k in o) {
-                const what = o[k];
-                if (what instanceof State) {
-                    p[k] = what.getValue();
+        return view.raw.map(RDB.unbox);
+    }
+    private static unbox(o: any) {
+        if (o === null) {
+            return null;
+        }
+        const p: any = {};
+        for (const k in o) {
+            const what = o[k];
+            if (what instanceof State) {
+                const whatvalue = what.getValue();
+                if (typeof whatvalue === 'object') {
+                    p[k] = RDB.unbox(whatvalue);
                 } else {
-                    p[k] = what;
+                    p[k] = whatvalue;
                 }
+            } else if (what instanceof RDBView) {
+                p[k] = RDB.freezeView(what);
+            } else {
+                p[k] = what;
             }
-            return p;
-        });
+        }
+        return p;
     }
 }
