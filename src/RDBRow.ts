@@ -83,8 +83,9 @@ export default class RDBRow extends StateCollection<string, any, void> {
     hasRef(colname: string, row: RDBRow): boolean {
         const { type, values } = this.getColumn(colname);
         if (type === 'ref') {
-            const ref = values.get(this) as RDBRow | null;
-            return ref === row;
+            const ref = values.get(this) as State<RDBRow | null>;
+            const refrow = ref.getValue();
+            return refrow === row;
         } else if (type === 'refs') {
             const refs = values.get(this) as StateList<RDBRow>;
             return refs.raw.includes(row);

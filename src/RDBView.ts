@@ -1,5 +1,6 @@
 import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
+import RDB from './RDB';
 import RDBRow from './RDBRow';
 import RDBTable from './RDBTable';
 
@@ -9,18 +10,21 @@ export interface RDBViewRow {
 export type ViewQuery = string | [string, ...ViewQuery[]];
 
 export default class RDBView extends StateList<any> {
+    private _db: RDB;
     private _props: ViewQuery[];
     private _filter?: (row: RDBRow) => boolean;
     private _sorters?: [field: string, order: 'asc' | 'desc'];
     private _objMapper = new WeakMap();
 
     constructor(
+        db: RDB,
         table: RDBTable,
         props: ViewQuery[],
         filter?: (row: RDBRow) => boolean,
         sorters?: [string, 'asc' | 'desc']
     ) {
         super();
+        this._db = db;
         this._props = props;
         this._filter = filter;
         this._sorters = sorters;
@@ -104,10 +108,18 @@ export default class RDBView extends StateList<any> {
                     }
                 } else {
                     const [refquery, ...refprops] = prop;
-                    if (refquery === '*') {
-                        this.selectAllRefs(refprops, row, cloneData);
+                    const [colname, deref] = refquery.split('#').reverse();
+                    if (deref) {
+                        const table = this._db.selectTable(deref);
+                        cloneData[refquery] = new RDBView(this._db, table, refprops, (refrow) =>
+                            refrow.hasRef(colname, row)
+                        );
                     } else {
-                        this.selectRef(refquery, refprops, row, cloneData);
+                        if (refquery === '*') {
+                            this.selectAllRefs(refprops, row, cloneData);
+                        } else {
+                            this.selectRef(refquery, refprops, row, cloneData);
+                        }
                     }
                 }
             }
@@ -158,7 +170,9 @@ export default class RDBView extends StateList<any> {
                 ob[column] = cloneRefState;
             } else if (type === 'refs') {
                 const refsState = values.get(row) as StateList<RDBRow>;
-                ob[column] = new RDBView(table, props, (row) => refsState.raw.includes(row));
+                ob[column] = new RDBView(this._db, table, props, (row) =>
+                    refsState.raw.includes(row)
+                );
             }
         }
     }

@@ -45,6 +45,6 @@ export default class RDBViewBuilder {
             throw Error(`pls specify table to select from`);
         }
         const table = this._db.selectTable(this._table);
-        return new RDBView(table, this._props, this._filter, this._sorters);
+        return new RDBView(this._db, table, this._props, this._filter, this._sorters);
     }
 }
