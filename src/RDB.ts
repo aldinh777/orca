@@ -1,6 +1,7 @@
 import { State } from '@aldinh777/reactive';
+import { StateList } from '@aldinh777/reactive/collection';
 import RDBTable from './RDBTable';
-import RDBView from './RDBView';
+import { RDBViewRow } from './RDBView';
 import RDBViewBuilder from './RDBViewBuilder';
 
 export default class RDB {
@@ -81,7 +82,7 @@ export default class RDB {
         }
         return tableState;
     }
-    static freezeView(view: RDBView): any {
+    static freezeView(view: StateList<RDBViewRow>): any {
         return view.raw.map(RDB.unbox);
     }
     private static unbox(o: any) {
@@ -98,7 +99,7 @@ export default class RDB {
                 } else {
                     p[k] = whatvalue;
                 }
-            } else if (what instanceof RDBView) {
+            } else if (what instanceof StateList) {
                 p[k] = RDB.freezeView(what);
             } else {
                 p[k] = what;
