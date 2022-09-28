@@ -67,7 +67,7 @@ describe('Reactive Database', () => {
     describe('View Builder', () => {
         it('select from', () => {
             db.createTable('user', sampleStructure).insertAll(sampleData);
-            const users = db.query.select('name').from('user').buildView();
+            const users = db.query.select('name').from('user').build();
             const result = RDB.freezeView(users);
             expect(result).toEqual(
                 sampleData.map((s) => ({
@@ -80,7 +80,7 @@ describe('Reactive Database', () => {
                 .select('name', 'age')
                 .from('user')
                 .where((row) => row.get('age') > 20)
-                .buildView();
+                .build();
             const result = RDB.freezeView(users);
             expect(result).toEqual(
                 sampleData.filter((s) => s.age > 20).map((s) => ({ name: s.name, age: s.age }))
@@ -91,7 +91,7 @@ describe('Reactive Database', () => {
                 .select('name', 'age')
                 .from('user')
                 .orderBy('age', 'asc')
-                .buildView();
+                .build();
             expect(RDB.freezeView(users)[0].name).toBe('nina');
         });
         it('observable depend on rows', () => {
@@ -99,7 +99,7 @@ describe('Reactive Database', () => {
                 .select('name', 'age')
                 .from('user')
                 .where((row) => row.get('age') > 20)
-                .buildView();
+                .build();
             const beforeNinaAging = sampleData
                 .filter((s) => s.age > 20)
                 .map((s) => ({ name: s.name, age: s.age }));
@@ -126,7 +126,7 @@ describe('Reactive Database', () => {
             db.selectTable('user').insertAll(sampleData);
         });
         it('observable depend on rows order by', () => {
-            const users = db.query.select('name', 'age').from('user').orderBy('age').buildView();
+            const users = db.query.select('name', 'age').from('user').orderBy('age').build();
             expect(RDB.freezeView(users)[0].name).toBe('nina');
             expect(RDB.freezeView(users)[0].age).toBe(13);
             db.selectTable('user').selectRow(
