@@ -1,6 +1,6 @@
 {
   "name": "reactive-db",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Database with reactivity",
   "main": "index.js",
   "dependencies": {
