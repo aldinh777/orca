@@ -3,6 +3,7 @@ import { StateCollection, StateList } from '@aldinh777/reactive/collection';
 import { removeInside } from './help';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
+import RDBError from '../error/RDBError';
 
 export type columnType = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
 
@@ -45,44 +46,25 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
     dropColumn(name: string): void {
         if (!this._columns.has(name)) {
-            throw Error(
-                `column to delete '${name}' never cease ` +
-                    `to exists anywhere on table ${this.getName()}`
-            );
+            throw new RDBError('COLUMN_DROP_NOT_EXISTS', name, this.getName());
         }
         this._columns.delete(name);
     }
     modifyColumn(name: string, type: string): void {
         if (!this._columns.has(name)) {
-            throw Error(
-                `success is nothing but lies. column '${name}' not modified, apparently ` +
-                    `this database is blind and cannot find any column with that name. ` +
-                    `we sincerenly apologize for our lack of competence :(`
-            );
+            throw new RDBError('COLUMN_NOT_EXISTS', name);
         }
         if (this.raw.length > 0) {
-            throw Error(
-                `so sorry, but this table have data inside. we afraid changing any column type ` +
-                    `could summon chaos, thus we are strictly told not to allow column to be modify ` +
-                    `when data is exists. very sorry for this.`
-            );
+            throw new RDBError('COLUMN_IN_DANGER');
         }
         this._columns.set(name, this.createColumnStructure(type));
     }
     renameColumn(oldname: string, newname: string): void {
         if (!this._columns.has(oldname)) {
-            throw Error(
-                `rename column failed: column to rename not exists\n` +
-                    `table: '${this.getName()}'\n` +
-                    `column to rename: '${oldname}'`
-            );
+            throw new RDBError('COLUMN_RENAME_NOT_EXISTS', oldname, this.getName());
         }
         if (this._columns.has(newname)) {
-            throw Error(
-                `failed rename column: targetname already exists\n` +
-                    `table: '${this.getName()}'\n` +
-                    `oldname: '${oldname}', newname: '${newname}'`
-            );
+            throw new RDBError('COLUMN_RENAME_TARGET_EXISTS', oldname, newname, this.getName());
         }
         const column = this._columns.get(oldname) as ColumnStructure;
         this._columns.delete(oldname);
@@ -96,24 +78,21 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             const value = (o as any)[colname];
             const column = this._columns.get(colname);
             if (!column) {
-                throw Error(
-                    `imvalid column '${colname}' when insert into table '${this.getName()}'\n` +
-                        `=== the object in question ===\n${JSON.stringify(o, null, 2)}`
-                );
+                throw new RDBError('INSERT_INVALID_COLUMN', colname, this.getName(), o);
             }
             const { type, verify, values, ref } = column;
             if (type === 'ref' || type === 'refs') {
                 const table = this.validateRefTable(ref);
                 if (type === 'ref') {
                     if (typeof value !== 'object') {
-                        throw Error(`invalid type ref colum '${colname}' must object`);
+                        throw new RDBError('INSERT_INVALID_REF', colname);
                     }
                     const ref = table.insert(value);
                     const refState = this.createRef(table, ref);
                     values.set(row, refState);
                 } else if (type === 'refs') {
                     if (!(value instanceof Array)) {
-                        throw Error(`invalud type refs sorri fot colum '${colname}' must array`);
+                        throw new RDBError('INSERT_INVALID_REFS', colname);
                     }
                     const refs = table.insertAll(value);
                     const refferences = this.createRefs(table, refs);
@@ -145,10 +124,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                         values.set(row, false);
                         break;
                     default:
-                        throw Error(
-                            `this is not supposed to be happen!` +
-                                ` invalid column type when inserting data '${type}'`
-                        );
+                        throw new RDBError('WHAT_IS_HAPPENING', type);
                 }
             }
         });
@@ -201,18 +177,11 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
 
     private validateRefTable(ref: State<string | RDBTable> | undefined): RDBTable {
         if (!ref) {
-            throw Error(
-                `somehow table refference lost ` +
-                    `at table '${this.getName()}' column $'{colname}'`
-            );
+            throw new RDBError('TABLE_REF_INVALIDATED', this.getName());
         }
         const table = ref.getValue();
         if (typeof table === 'string') {
-            throw Error(
-                `table refference not yet resolved. ` +
-                    `still waiting for table '${table}' to be created. \n` +
-                    `waiter: '${this.getName()}'`
-            );
+            throw new RDBError('TABLE_REF_UNRESOLVED', this.getName());
         }
         return table;
     }
@@ -240,10 +209,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                 values: new WeakMap(),
                 verify: (value) => {
                     if (typeof value !== type) {
-                        throw Error(
-                            `unmatching type when setting value. \n` +
-                                `expected: '${type}', reality: '${typeof value}'`
-                        );
+                        throw new RDBError('TYPE_MISMATCH', type, value);
                     }
                     return true;
                 }
@@ -259,13 +225,13 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     verify(value) {
                         const table = ref.getValue();
                         if (!(table instanceof RDBTable)) {
-                            throw Error(`failed getting refference`);
+                            throw new RDBError('REF_FAILED');
                         }
                         if (!(value instanceof RDBRow || value === null)) {
-                            throw Error(`invalid refference type. allowed: RDBRow | null`);
+                            throw new RDBError('REF_INVALID_TYPE');
                         }
                         if (value && !table.hasRow(value)) {
-                            throw Error(`row as reference probably deleted from it's table`);
+                            throw new RDBError('REF_ROW_DELETED');
                         }
                         return true;
                     }
@@ -276,14 +242,11 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     values: new WeakMap(),
                     ref: this._db.getTableRefference(refference),
                     verify() {
-                        throw Error(
-                            `setting references through method '[row].set()' is not allowed.` +
-                                `use '[row].addRefs()' or '[row].deleteRefs()' instead to modify refferences`
-                        );
+                        throw new RDBError('ILLEGAL_REFS_SET');
                     }
                 };
             } else {
-                throw Error(`nonvalid type '${type}' when creating column`);
+                throw new RDBError('WHAT_IS_HAPPENING');
             }
         }
     }

@@ -3,6 +3,7 @@ import { StateList } from '@aldinh777/reactive/collection';
 import RDBTable from './RDBTable';
 import { RDBViewRow } from './RDBView';
 import RDBViewBuilder from './RDBViewBuilder';
+import RDBError from '../error/RDBError';
 
 export default class RDB {
     private _tables: Map<string, RDBTable> = new Map();
@@ -12,7 +13,7 @@ export default class RDB {
 
     createTable(name: string, structure: object): RDBTable {
         if (this._tables.has(name)) {
-            throw Error(`attempting to recreate an already existing table '${name}'.`);
+            throw new RDBError('TABLE_EXISTS', name);
         }
         const table = new RDBTable(this, structure);
         this._tables.set(name, table);
@@ -29,16 +30,13 @@ export default class RDB {
     selectTable(name: string): RDBTable {
         const table = this._tables.get(name);
         if (!table) {
-            throw Error(`inable to select non existing table '${name}'.`);
+            throw new RDBError('TABLE_NOT_EXISTS', name);
         }
         return table;
     }
     dropTable(name: string): void {
         if (!this._tables.has(name)) {
-            throw Error(
-                `trying to delete non existing table '${name}'. ` +
-                    `how cruel, it doesn't exists yet you still want to remove it from existence.`
-            );
+            throw new RDBError('TABLE_DROP_NOT_EXISTS', name);
         }
         const tb = this._tables.get(name) as RDBTable;
         this._tablenames.delete(tb);
@@ -47,18 +45,10 @@ export default class RDB {
     }
     renameTable(oldname: string, newname: string): void {
         if (!this._tables.has(oldname)) {
-            throw Error(
-                `renaming '${oldname}' but no table with name '${oldname}' ` +
-                    `so '${oldname}' not renamed to '${newname}' because table with name '${oldname}' ` +
-                    `not exists in the first place.`
-            );
+            throw new RDBError('TABLE_RENAME_NOT_EXISTS', oldname, newname);
         }
         if (this._tables.has(newname)) {
-            throw Error(
-                `renaming '${oldname}' to '${newname}' but table '${newname}' ` +
-                    `already exists, you can't do that or else you have 2 tables with the same name.` +
-                    `remove table '${newname}' first or consider a new name. What about '${newname}2'?.`
-            );
+            throw new RDBError('TABLE_CLONE_JUTSU', oldname, newname);
         }
         const tb = this._tables.get(oldname) as RDBTable;
         this._tables.delete(oldname);

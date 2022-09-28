@@ -1,5 +1,6 @@
 import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
+import RDBError from '../error/RDBError';
 import { removeDeeper } from './help';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
@@ -119,7 +120,7 @@ export default class RDBView extends StateList<RDBViewRow> {
                         cloneData.id = row.id;
                     } else {
                         if (!row.has(prop)) {
-                            throw Error(`not valid column '${prop}'`);
+                            throw new RDBError('NOT_VALID_COLUMN', prop);
                         }
                         cloneData[prop] = new State(row.get(prop));
                     }
@@ -199,7 +200,7 @@ export default class RDBView extends StateList<RDBViewRow> {
             pie.onDelete((_, deleted) => removeDeeper(cloneRefsList, deleted, mapper));
             return cloneRefsList;
         } else {
-            throw Error(`god knows`);
+            throw new RDBError('ALLAH_IS_WATCHING');
         }
     }
     private selectPainPeko(
@@ -243,7 +244,7 @@ export default class RDBView extends StateList<RDBViewRow> {
                     }
                 });
             } else {
-                throw Error(`selected refs is not a ref '${colname}'`);
+                throw new RDBError('REF_IS_NOT_A_REF', colname);
             }
         };
         derefTable.selectRows('*', (ref) => {

@@ -1,3 +1,4 @@
+import RDBError from '../error/RDBError';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
 import RDBView, { ViewQuery } from './RDBView';
@@ -42,7 +43,7 @@ export default class RDBViewBuilder {
     }
     build(): RDBView {
         if (!this._table) {
-            throw Error(`pls specify table to select from`);
+            throw new RDBError('TABLE_NOT_SPECIFIED');
         }
         const table = this._db.selectTable(this._table);
         return new RDBView(this._db, table, this._props, this._filter, this._sorters);

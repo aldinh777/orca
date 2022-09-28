@@ -2,6 +2,7 @@ import { StateCollection, StateList } from '@aldinh777/reactive/collection';
 import RDBTable, { ColumnStructure } from './RDBTable';
 import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from './help';
 import { State } from '@aldinh777/reactive';
+import RDBError from '../error/RDBError';
 
 export default class RDBRow extends StateCollection<string, any, void> {
     private _columns: Map<string, ColumnStructure>;
@@ -20,19 +21,14 @@ export default class RDBRow extends StateCollection<string, any, void> {
     set(colname: string, value: any): this {
         const { values, type, verify } = this.getColumn(colname);
         if (!verify(value)) {
-            throw Error(
-                `this shit is programmed to never happen and somehow ` +
-                    `you make the impossible to happen what the f*ck? ` +
-                    `i have zero idea how this is even possible, this is wicked. ` +
-                    `congratulation anyway`
-            );
+            throw new RDBError('IMPOSSIBLE');
         }
         const oldvalue = values.get(this);
         if (type === 'ref') {
             if (oldvalue instanceof State) {
                 oldvalue.setValue(value);
             } else {
-                throw Error(`invalid refference not a state? why not? how?`);
+                throw new RDBError('NOT_A_STATE');
             }
         } else {
             values.set(this, value);
@@ -47,22 +43,22 @@ export default class RDBRow extends StateCollection<string, any, void> {
     addRefs(colname: string, ...rows: RDBRow[]): void {
         const { type, ref, values } = this.getColumn(colname);
         if (type !== 'refs' || !ref) {
-            throw Error(`fail adding refferences, '${colname}' is not a references`);
+            throw new RDBError('REFS_ADD_FAILED', colname);
         }
         if (!(ref instanceof State)) {
-            throw Error(`unresolved refferences`);
+            throw new RDBError('REFS_UNRESOLVED');
         }
         const table = ref.getValue();
         if (!(table instanceof RDBTable)) {
-            throw Error(`its just error wtf!`);
+            throw new RDBError('HOW???');
         }
         const refs = values.get(this) as StateList<RDBRow>;
         for (const row of rows) {
             if (!(row instanceof RDBRow)) {
-                throw Error(`type mismatch when adding ref to '${colname}'. type: '${typeof row}'`);
+                throw new RDBError('REFS_ADD_TYPE_MISMATCH', colname, row);
             }
             if (!table.hasRow(row)) {
-                throw Error(`table row mismatch when trying to add ref '${colname}'`);
+                throw new RDBError('REFS_ADD_TABLE_MISMATCH', colname);
             }
             if (!refs.raw.includes(row)) {
                 refs.push(row);
@@ -72,7 +68,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
     deleteRefs(colname: string, filter: (row: RDBRow) => boolean): void {
         const { type, values } = this.getColumn(colname);
         if (type !== 'refs') {
-            throw Error(`fail deleteing refferences, reason unclear`);
+            throw new RDBError('REFS_DELETE_FAILED');
         }
         const refs = values.get(this) as StateList<RDBRow>;
         for (const ref of refs.raw) {
@@ -91,7 +87,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
             const refs = values.get(this) as StateList<RDBRow>;
             return refs.raw.includes(row);
         } else {
-            throw Error(`column '${colname}' is not a reference`);
+            throw new RDBError('NOT_A_REFERENCE');
         }
     }
     eachColumn(callback: (name: string, column: ColumnStructure) => void): void {
@@ -102,7 +98,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
     getColumn(colname: string): ColumnStructure {
         const column = this._columns.get(colname);
         if (!column) {
-            throw Error(`invalid column '${colname}' accessing from row`);
+            throw new RDBError('INVALID_COLUMN', colname);
         }
         return column;
     }
