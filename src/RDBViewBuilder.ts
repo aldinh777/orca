@@ -40,7 +40,7 @@ export default class RDBViewBuilder {
         builder._sorters = [column, order];
         return builder;
     }
-    buildView(): RDBView {
+    build(): RDBView {
         if (!this._table) {
             throw Error(`pls specify table to select from`);
         }
