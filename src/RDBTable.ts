@@ -1,5 +1,6 @@
 import { State } from '@aldinh777/reactive';
 import { StateCollection, StateList } from '@aldinh777/reactive/collection';
+import { removeInside } from './help';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
 
@@ -25,7 +26,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             this.addColumn(column, type);
         }
     }
-    getName() {
+    getName(): string | undefined {
         return this._db.getTableName(this);
     }
 
@@ -35,14 +36,14 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     set(_id: string, _value: RDBRow): this {
         throw new Error('Method not implemented, on purpose!');
     }
-    hasRow(row: RDBRow) {
+    hasRow(row: RDBRow): boolean {
         return this.raw.includes(row);
     }
 
-    addColumn(name: string, type: string) {
+    addColumn(name: string, type: string): void {
         this._columns.set(name, this.createColumnStructure(type));
     }
-    dropColumn(name: string) {
+    dropColumn(name: string): void {
         if (!this._columns.has(name)) {
             throw Error(
                 `column to delete '${name}' never cease ` +
@@ -51,7 +52,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         }
         this._columns.delete(name);
     }
-    modifyColumn(name: string, type: string) {
+    modifyColumn(name: string, type: string): void {
         if (!this._columns.has(name)) {
             throw Error(
                 `success is nothing but lies. column '${name}' not modified, apparently ` +
@@ -68,7 +69,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         }
         this._columns.set(name, this.createColumnStructure(type));
     }
-    renameColumn(oldname: string, newname: string) {
+    renameColumn(oldname: string, newname: string): void {
         if (!this._columns.has(oldname)) {
             throw Error(
                 `rename column failed: column to rename not exists\n` +
@@ -228,10 +229,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     private createRefs(table: RDBTable, refs: RDBRow[]): StateList<RDBRow> {
         const refflist = new StateList(refs);
         table.onDelete((_, deleted) => {
-            const index = refflist.raw.indexOf(deleted);
-            if (index !== -1) {
-                refflist.splice(index, 1);
-            }
+            removeInside(refflist, deleted);
         });
         return refflist;
     }

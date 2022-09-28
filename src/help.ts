@@ -1,3 +1,7 @@
+import { StateList } from '@aldinh777/reactive/collection';
+import RDBRow from './RDBRow';
+import { RDBViewRow } from './RDBView';
+
 /**
  * Digit limit for randomshit function for it to execute
  * another randomshit recursively because Math.random() * somenumber
@@ -17,4 +21,22 @@ export function randomShit(digit: number, radix: number = 36): string {
             .padStart(limitedDigit, '0') +
         (digit > AQUA_TAN_DIGIT_LIMIT ? randomShit(digit - AQUA_TAN_DIGIT_LIMIT) : '')
     );
+}
+
+export function removeInside<T>(list: StateList<T>, item: T): void {
+    const index = list.raw.indexOf(item);
+    if (index !== -1) {
+        list.splice(index, 1);
+    }
+}
+
+export function removeDeeper(
+    list: StateList<RDBViewRow>,
+    row: RDBRow,
+    mapper: WeakMap<RDBRow, RDBViewRow>
+): void {
+    const ouch = mapper.get(row);
+    if (ouch) {
+        removeInside(list, ouch);
+    }
 }

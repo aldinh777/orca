@@ -1,6 +1,6 @@
 import { StateCollection, StateList } from '@aldinh777/reactive/collection';
 import RDBTable, { ColumnStructure } from './RDBTable';
-import { AQUA_TAN_DIGIT_LIMIT, randomShit } from './help';
+import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from './help';
 import { State } from '@aldinh777/reactive';
 
 export default class RDBRow extends StateCollection<string, any, void> {
@@ -44,7 +44,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
         const { values } = this.getColumn(colname);
         return values.has(this);
     }
-    addRefs(colname: string, ...rows: RDBRow[]) {
+    addRefs(colname: string, ...rows: RDBRow[]): void {
         const { type, ref, values } = this.getColumn(colname);
         if (type !== 'refs' || !ref) {
             throw Error(`fail adding refferences, '${colname}' is not a references`);
@@ -69,17 +69,16 @@ export default class RDBRow extends StateCollection<string, any, void> {
             }
         }
     }
-    deleteRefs(colname: string, filter: (row: RDBRow) => boolean) {
+    deleteRefs(colname: string, filter: (row: RDBRow) => boolean): void {
         const { type, values } = this.getColumn(colname);
         if (type !== 'refs') {
             throw Error(`fail deleteing refferences, reason unclear`);
         }
         const refs = values.get(this) as StateList<RDBRow>;
-        const rawlist = refs.raw;
-        const dellist = rawlist.filter(filter);
-        for (const ref of dellist) {
-            const index = rawlist.indexOf(ref);
-            refs.splice(index, 1);
+        for (const ref of refs.raw) {
+            if (filter(ref)) {
+                removeInside(refs, ref);
+            }
         }
     }
     hasRef(colname: string, row: RDBRow): boolean {
@@ -95,7 +94,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
             throw Error(`column '${colname}' is not a reference`);
         }
     }
-    eachColumn(callback: (name: string, column: ColumnStructure) => any): void {
+    eachColumn(callback: (name: string, column: ColumnStructure) => void): void {
         this._columns.forEach((column, name) => {
             callback(name, column);
         });

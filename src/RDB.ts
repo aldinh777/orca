@@ -33,7 +33,7 @@ export default class RDB {
         }
         return table;
     }
-    dropTable(name: string) {
+    dropTable(name: string): void {
         if (!this._tables.has(name)) {
             throw Error(
                 `trying to delete non existing table '${name}'. ` +
@@ -45,7 +45,7 @@ export default class RDB {
         tb.delete(() => true);
         this._tables.delete(name);
     }
-    renameTable(oldname: string, newname: string) {
+    renameTable(oldname: string, newname: string): void {
         if (!this._tables.has(oldname)) {
             throw Error(
                 `renaming '${oldname}' but no table with name '${oldname}' ` +
@@ -85,7 +85,7 @@ export default class RDB {
     static freezeView(view: StateList<RDBViewRow>): any {
         return view.raw.map(RDB.unbox);
     }
-    private static unbox(o: any) {
+    private static unbox(o: any): any {
         if (o === null) {
             return null;
         }
