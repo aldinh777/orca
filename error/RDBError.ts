@@ -39,8 +39,8 @@ const ERROR_CODES: any = {
     WHAT_IS_HAPPENING: (type: string) =>
         `this is not supposed to be happen! invalid column type '${type}'`,
     TABLE_REF_INVALIDATED: (table: string) => `somehow table refference lost at table '${table}'`,
-    TABLE_REF_UNRESOLVED: (table: string) =>
-        `table refference not yet resolved. still waiting for table '${table}' to be created. \n` +
+    TABLE_REF_UNRESOLVED: (table: string, wait: string) =>
+        `table refference not yet resolved. still waiting for table '${wait}' to be created. \n` +
         `waiter: '${table}'`,
     TYPE_MISMATCH: (type: string, value: any) =>
         `unmatching type when setting value. \nexpected: '${type}', reality: '${typeof value}'`,
@@ -50,6 +50,7 @@ const ERROR_CODES: any = {
     ILLEGAL_REFS_SET: () =>
         `setting references through method '[row].set()' is not allowed.` +
         `use '[row].addRefs()' or '[row].deleteRefs()' instead to modify refferences`,
+    INVALID_TYPE: (type: string) => `nonvalid type '${type}' when creating column`,
     IMPOSSIBLE: () =>
         `this shit is programmed to never happen and somehow ` +
         `you make the impossible to happen what the f*ck? ` +

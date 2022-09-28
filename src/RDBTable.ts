@@ -181,7 +181,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         }
         const table = ref.getValue();
         if (typeof table === 'string') {
-            throw new RDBError('TABLE_REF_UNRESOLVED', this.getName());
+            throw new RDBError('TABLE_REF_UNRESOLVED', this.getName(), table);
         }
         return table;
     }
@@ -246,7 +246,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     }
                 };
             } else {
-                throw new RDBError('WHAT_IS_HAPPENING');
+                throw new RDBError('INVALID_TYPE', type);
             }
         }
     }
