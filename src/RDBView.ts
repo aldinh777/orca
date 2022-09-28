@@ -32,14 +32,10 @@ export default class RDBView extends StateList<RDBViewRow> {
         this._props = props;
         this._filter = filter;
         this._sorters = sorters;
-        table.selectRows('*', (row) => {
-            this.watchRowUpdate(row);
-        });
-        table.onInsert((_, inserted) => {
-            this.watchRowUpdate(inserted);
-        });
+        table.selectRows('*', (row) => this.watchRowUpdate(row));
+        table.onInsert((_, inserted) => this.watchRowUpdate(inserted));
         table.onDelete((_, deleted) => {
-            if (this._objMapper.has(deleted)) {
+            if (this._contents.has(deleted)) {
                 this.removeItem(deleted);
             }
         });
@@ -129,12 +125,10 @@ export default class RDBView extends StateList<RDBViewRow> {
                     const [colname, deref] = refquery.split('#').reverse();
                     if (deref) {
                         cloneData[refquery] = this.selectPainPeko(colname, deref, refprops, row);
+                    } else if (refquery === '*') {
+                        this.selectAllRefs(refprops, row, cloneData);
                     } else {
-                        if (refquery === '*') {
-                            this.selectAllRefs(refprops, row, cloneData);
-                        } else {
-                            cloneData[refquery] = this.selectRef(refquery, refprops, row);
-                        }
+                        cloneData[refquery] = this.selectRef(refquery, refprops, row);
                     }
                 }
             }
@@ -154,8 +148,7 @@ export default class RDBView extends StateList<RDBViewRow> {
         ob.id = row.id;
         row.eachColumn((key, { type, values }) => {
             if (type !== 'ref' && type !== 'refs') {
-                const st = new State(values.get(row));
-                ob[key] = st;
+                ob[key] = new State(values.get(row));
             }
         });
     }
@@ -176,23 +169,15 @@ export default class RDBView extends StateList<RDBViewRow> {
         const mapper: WeakMap<RDBRow, RDBViewRow> = new WeakMap();
         if (pie instanceof State) {
             const cloneRefState = new State(null as RDBViewRow | null);
-            const refObserver = (ref: RDBRow | null) => {
-                if (ref === null) {
-                    cloneRefState.setValue(null);
-                } else {
-                    const cloneRef = this.copySelected(ref, props, mapper);
-                    cloneRefState.setValue(cloneRef);
-                }
-            };
+            const refObserver = (ref: RDBRow | null) =>
+                cloneRefState.setValue(ref === null ? null : this.copySelected(ref, props, mapper));
             refObserver(pie.getValue());
             pie.onChange(refObserver);
             return cloneRefState;
         } else if (pie instanceof StateList) {
             const cloneRefsList: StateList<RDBViewRow> = new StateList();
-            const executeOrder66 = (ref: RDBRow) => {
-                const oh = this.copySelected(ref, props, mapper);
-                cloneRefsList.push(oh);
-            };
+            const executeOrder66 = (ref: RDBRow) =>
+                cloneRefsList.push(this.copySelected(ref, props, mapper));
             for (const ref of pie.raw) {
                 executeOrder66(ref);
             }
@@ -212,10 +197,8 @@ export default class RDBView extends StateList<RDBViewRow> {
         const derefMapper: WeakMap<RDBRow, RDBViewRow> = new WeakMap();
         const derefTable = this._db.selectTable(deref);
         const derefs: StateList<RDBViewRow> = new StateList();
-        const executeOrder66 = (ref: RDBRow) => {
-            const ow = this.copySelected(ref, refprops, derefMapper);
-            derefs.push(ow);
-        };
+        const executeOrder66 = (ref: RDBRow) =>
+            derefs.push(this.copySelected(ref, refprops, derefMapper));
         const watchRowRefsUpdate = (ref: RDBRow) => {
             const rubrub = ref.get(colname);
             if (rubrub instanceof State) {
@@ -247,15 +230,9 @@ export default class RDBView extends StateList<RDBViewRow> {
                 throw new RDBError('REF_IS_NOT_A_REF', colname);
             }
         };
-        derefTable.selectRows('*', (ref) => {
-            watchRowRefsUpdate(ref);
-        });
-        derefTable.onInsert((_, ref) => {
-            watchRowRefsUpdate(ref);
-        });
-        derefTable.onDelete((_, ref) => {
-            removeDeeper(derefs, ref, derefMapper);
-        });
+        derefTable.selectRows('*', (ref) => watchRowRefsUpdate(ref));
+        derefTable.onInsert((_, ref) => watchRowRefsUpdate(ref));
+        derefTable.onDelete((_, ref) => removeDeeper(derefs, ref, derefMapper));
         return derefs;
     }
 }

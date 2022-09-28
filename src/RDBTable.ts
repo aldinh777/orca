@@ -139,9 +139,9 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         }
         return inserteds;
     }
-    delete(filter: (row: RDBRow) => boolean): void {
+    delete(filter: '*' | ((row: RDBRow) => boolean)): void {
         const rawlist = this.raw;
-        const dellist = rawlist.filter(filter);
+        const dellist = rawlist.filter(filter === '*' ? () => true : filter);
         for (const delrow of dellist) {
             const index = rawlist.indexOf(delrow);
             this.raw.splice(index, 1);
@@ -150,7 +150,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
     selectRow(
         filter: (row: RDBRow) => boolean,
-        callback?: (row: RDBRow) => any
+        callback?: (row: RDBRow) => void
     ): RDBRow | undefined {
         for (const row of this.raw) {
             if (filter(row)) {
@@ -163,7 +163,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
     selectRows(
         filter: '*' | ((row: RDBRow) => boolean),
-        callback?: (row: RDBRow) => any
+        callback?: (row: RDBRow) => void
     ): RDBRow[] {
         const rawlist = this.raw;
         const rows = filter === '*' ? [...rawlist] : rawlist.filter(filter);
