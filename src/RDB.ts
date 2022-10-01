@@ -39,8 +39,8 @@ export default class RDB {
             throw new RDBError('TABLE_DROP_NOT_EXISTS', name);
         }
         const tb = this._tables.get(name) as RDBTable;
+        RDBTable.drop(tb);
         this._tablenames.delete(tb);
-        tb.delete(() => true);
         this._tables.delete(name);
     }
     renameTable(oldname: string, newname: string): void {

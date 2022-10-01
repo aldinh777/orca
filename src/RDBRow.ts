@@ -102,4 +102,9 @@ export default class RDBRow extends StateCollection<string, any, void> {
         }
         return column;
     }
+    static destroy(row: RDBRow): void {
+        row._upd.ins = [];
+        row._upd.del = [];
+        row._upd.set = [];
+    }
 }

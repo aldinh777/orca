@@ -1,5 +1,8 @@
-import { StateList } from '@aldinh777/reactive/collection';
+import { OperationHandler, StateCollection, StateList } from '@aldinh777/reactive/collection';
+import { createMultiSubscriptions, Subscription } from '@aldinh777/reactive/util';
+import RDB from './RDB';
 import RDBRow from './RDBRow';
+import RDBTable from './RDBTable';
 import { RDBViewRow } from './RDBView';
 
 /**
@@ -21,6 +24,34 @@ export function randomShit(digit: number, radix: number = 36): string {
             .padStart(limitedDigit, '0') +
         (digit > AQUA_TAN_DIGIT_LIMIT ? randomShit(digit - AQUA_TAN_DIGIT_LIMIT) : '')
     );
+}
+
+export function tableEach(
+    table: RDBTable,
+    cbEach: (row: RDBRow) => void,
+    cbDel?: (row: RDBRow) => void
+): Subscription<RDBTable, OperationHandler<string, RDBRow>> {
+    table.selectRows('*', cbEach);
+    const subs = [table.onInsert((_, inserted) => cbEach(inserted))];
+    if (cbDel) {
+        subs.push(table.onDelete((_, deleted) => cbDel(deleted)));
+    }
+    return createMultiSubscriptions(table, (_, row) => cbEach(row), subs);
+}
+
+export function leach<B>(
+    l: StateList<B>,
+    cbEach: (row: B) => void,
+    cbDel?: (row: B) => void
+): Subscription<StateList<B>, OperationHandler<number, B>> {
+    for (const b of l.raw) {
+        cbEach(b);
+    }
+    const subs = [l.onInsert((_, inserted) => cbEach(inserted))];
+    if (cbDel) {
+        subs.push(l.onDelete((_, deleted) => cbDel(deleted)));
+    }
+    return createMultiSubscriptions(l, (_: number, row: B) => cbEach(row), subs);
 }
 
 export function removeInside<T>(list: StateList<T>, item: T): void {

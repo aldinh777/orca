@@ -146,6 +146,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             const index = rawlist.indexOf(delrow);
             this.raw.splice(index, 1);
             this.trigger('del', delrow.id, delrow);
+            RDBRow.destroy(delrow);
         }
     }
     selectRow(
@@ -249,5 +250,12 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                 throw new RDBError('INVALID_TYPE', type);
             }
         }
+    }
+    static drop(table: RDBTable): void {
+        table.delete('*');
+        table._columns.clear();
+        table._upd.ins = [];
+        table._upd.del = [];
+        table._upd.set = [];
     }
 }

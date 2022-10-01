@@ -1,7 +1,8 @@
 import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
+import { Subscription } from '@aldinh777/reactive/util';
 import RDBError from '../error/RDBError';
-import { removeDeeper } from './help';
+import { leach, removeDeeper, tableEach } from './help';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
 import RDBTable from './RDBTable';
@@ -11,6 +12,7 @@ export interface RDBViewRow {
     [key: string]: State<any> | StateList<RDBViewRow> | string | undefined;
 }
 export type ViewQuery = string | [string, ...ViewQuery[]];
+type BOITTO = void;
 
 export default class RDBView extends StateList<RDBViewRow> {
     private _db: RDB;
@@ -19,6 +21,7 @@ export default class RDBView extends StateList<RDBViewRow> {
     private _sorters?: [field: string, order: 'asc' | 'desc'];
     private _objMapper: WeakMap<RDBRow, RDBViewRow> = new WeakMap();
     private _contents: WeakSet<RDBRow> = new WeakSet();
+    private _subs: Subscription<any, any>[] = [];
 
     constructor(
         db: RDB,
@@ -32,33 +35,52 @@ export default class RDBView extends StateList<RDBViewRow> {
         this._props = props;
         this._filter = filter;
         this._sorters = sorters;
-        table.selectRows('*', (row) => this.watchRowUpdate(row));
-        table.onInsert((_, inserted) => this.watchRowUpdate(inserted));
-        table.onDelete((_, deleted) => {
-            if (this._contents.has(deleted)) {
-                this.removeItem(deleted);
-            }
-        });
+        this._subs.push(
+            tableEach(
+                table,
+                (eachrow) => this.watchRowUpdate(eachrow),
+                (delrow) => {
+                    if (this._contents.has(delrow)) {
+                        this.removeItem(delrow);
+                    }
+                }
+            )
+        );
+    }
+
+    stop() {
+        RDBView.BANISHMENT_THIS_WORLD(this);
+    }
+    private static BANISHMENT_THIS_WORLD(WORLD: RDBView): BOITTO {
+        for (const DESTRUCTION of WORLD._subs) {
+            RDBView.EXPLOSION(DESTRUCTION);
+        }
+        WORLD._subs = [];
+    }
+    private static EXPLOSION(YOUTUBER_YOU_DISLIKE: Subscription<any, any>): BOITTO {
+        YOUTUBER_YOU_DISLIKE.unsub();
     }
 
     private watchRowUpdate(row: RDBRow): void {
         if (this._filter ? this._filter(row) : true) {
             this.insertItem(row);
         }
-        row.onUpdate((key) => {
-            if (this._contents.has(row)) {
-                if (this._filter ? !this._filter(row) : false) {
-                    this.removeItem(row);
-                } else if (this._sorters && this._sorters[0] === key) {
-                    this.removeItem(row);
-                    this.insertItem(row);
+        this._subs.push(
+            row.onUpdate((key) => {
+                if (this._contents.has(row)) {
+                    if (this._filter ? !this._filter(row) : false) {
+                        this.removeItem(row);
+                    } else if (this._sorters && this._sorters[0] === key) {
+                        this.removeItem(row);
+                        this.insertItem(row);
+                    }
+                } else {
+                    if (this._filter && this._filter(row)) {
+                        this.insertItem(row);
+                    }
                 }
-            } else {
-                if (this._filter && this._filter(row)) {
-                    this.insertItem(row);
-                }
-            }
-        });
+            })
+        );
     }
     private insertItem(row: RDBRow): void {
         const cloneData = this.copySelected(row, this._props, this._objMapper);
@@ -133,14 +155,16 @@ export default class RDBView extends StateList<RDBViewRow> {
                 }
             }
         }
-        row.onUpdate((key, value) => {
-            if (Reflect.has(cloneData, key)) {
-                const propState = cloneData[key];
-                if (propState instanceof State) {
-                    propState.setValue(value);
+        this._subs.push(
+            row.onUpdate((key, value) => {
+                if (Reflect.has(cloneData, key)) {
+                    const propState = cloneData[key];
+                    if (propState instanceof State) {
+                        propState.setValue(value);
+                    }
                 }
-            }
-        });
+            })
+        );
         mapper.set(row, cloneData);
         return cloneData;
     }
@@ -172,17 +196,15 @@ export default class RDBView extends StateList<RDBViewRow> {
             const refObserver = (ref: RDBRow | null) =>
                 cloneRefState.setValue(ref === null ? null : this.copySelected(ref, props, mapper));
             refObserver(pie.getValue());
-            pie.onChange(refObserver);
+            this._subs.push(pie.onChange(refObserver));
             return cloneRefState;
         } else if (pie instanceof StateList) {
             const cloneRefsList: StateList<RDBViewRow> = new StateList();
             const executeOrder66 = (ref: RDBRow) =>
                 cloneRefsList.push(this.copySelected(ref, props, mapper));
-            for (const ref of pie.raw) {
-                executeOrder66(ref);
-            }
-            pie.onInsert((_, inserted) => executeOrder66(inserted));
-            pie.onDelete((_, deleted) => removeDeeper(cloneRefsList, deleted, mapper));
+            this._subs.push(
+                leach(pie, executeOrder66, (ref) => removeDeeper(cloneRefsList, ref, mapper))
+            );
             return cloneRefsList;
         } else {
             throw new RDBError('ALLAH_IS_WATCHING');
@@ -205,34 +227,42 @@ export default class RDBView extends StateList<RDBViewRow> {
                 if (rubrub.getValue() === row) {
                     executeOrder66(ref);
                 }
-                rubrub.onChange((val) => {
-                    if (val === row) {
-                        executeOrder66(ref);
-                    } else {
-                        removeDeeper(derefs, ref, derefMapper);
-                    }
-                });
+                this._subs.push(
+                    rubrub.onChange((val) => {
+                        if (val === row) {
+                            executeOrder66(ref);
+                        } else {
+                            removeDeeper(derefs, ref, derefMapper);
+                        }
+                    })
+                );
             } else if (rubrub instanceof StateList) {
                 if (rubrub.raw.includes(row)) {
                     executeOrder66(ref);
                 }
-                rubrub.onInsert((_, inserted) => {
-                    if (inserted === row) {
-                        executeOrder66(ref);
-                    }
-                });
-                rubrub.onDelete((_, deleted) => {
-                    if (deleted === row) {
-                        removeDeeper(derefs, ref, derefMapper);
-                    }
-                });
+                this._subs.push(
+                    rubrub.onInsert((_, inserted) => {
+                        if (inserted === row) {
+                            executeOrder66(ref);
+                        }
+                    })
+                );
+                this._subs.push(
+                    rubrub.onDelete((_, deleted) => {
+                        if (deleted === row) {
+                            removeDeeper(derefs, ref, derefMapper);
+                        }
+                    })
+                );
             } else {
                 throw new RDBError('REF_IS_NOT_A_REF', colname);
             }
         };
-        derefTable.selectRows('*', (ref) => watchRowRefsUpdate(ref));
-        derefTable.onInsert((_, ref) => watchRowRefsUpdate(ref));
-        derefTable.onDelete((_, ref) => removeDeeper(derefs, ref, derefMapper));
+        this._subs.push(
+            tableEach(derefTable, watchRowRefsUpdate, (ref) =>
+                removeDeeper(derefs, ref, derefMapper)
+            )
+        );
         return derefs;
     }
 }
