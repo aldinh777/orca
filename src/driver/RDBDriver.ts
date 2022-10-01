@@ -21,10 +21,46 @@ export default class RDBDriver {
         this.path = dbpath;
         this.db = db;
 
+        db.onTableCreate((name, table) => {
+            // do some suspicious thing to the table
+            table.eachColumn((name, column) => {
+                // column init maybe
+            });
+            table.onColumnRename((oldname, newname) => {
+                // what todo when column renamed?
+            });
+            table.onColumnAdd((name, column) => {
+                // coladd
+            });
+            table.onColumnDrop((name, column) => {
+                // cool and drip
+            });
+            table.onColumnModify((name, column) => {
+                // column modified
+            });
+
+            //do something 'dangeraus' to items
+            table.selectRows('*', (row) => {
+                // rows init pelhaps
+            });
+            table.onInsert((row) => {
+                // on row inselt
+            });
+            table.onDelete((row) => {
+                // on low delete
+            });
+            // uwu
+        });
+        db.onTableDrop((name, table) => {
+            // what to do when table drop?
+            // yeah, remove all files with said name
+        });
+
         if (existsSync(dbpath)) {
             // code for reading existing db
         } else {
-            mkdirSync(dbpath);
+            mkdirSync(join(dbpath, 'structures'), { recursive: true });
+            mkdirSync(join(dbpath, 'values'), { recursive: true });
         }
     }
 }

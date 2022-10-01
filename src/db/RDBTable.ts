@@ -9,12 +9,19 @@ export type columnType = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
 
 export interface ColumnStructure {
     type: columnType;
-    verify: (value: any) => boolean;
+    verify(value: any): boolean;
     ref?: State<RDBTable | string>;
     values: WeakMap<RDBRow, any>;
 }
+export interface ColumnListener {
+    rename: ((oldname: string, newname: string) => void)[];
+    modify: ((colname: string, column: ColumnStructure) => void)[];
+    add: ((colname: string, column: ColumnStructure) => void)[];
+    drop: ((colname: string, column: ColumnStructure) => void)[];
+}
 
 export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> {
+    private _colupd: ColumnListener = { modify: [], rename: [], add: [], drop: [] };
     private _db: RDB;
     private _columns: Map<string, ColumnStructure> = new Map();
 
@@ -42,13 +49,21 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
 
     addColumn(name: string, type: string): void {
-        this._columns.set(name, this.createColumnStructure(type));
+        const column = this.createColumnStructure(type);
+        this._columns.set(name, column);
+        for (const add of this._colupd.add) {
+            add(name, column);
+        }
     }
     dropColumn(name: string): void {
         if (!this._columns.has(name)) {
             throw new RDBError('COLUMN_DROP_NOT_EXISTS', name, this.getName());
         }
+        const column = this._columns.get(name) as ColumnStructure;
         this._columns.delete(name);
+        for (const drop of this._colupd.drop) {
+            drop(name, column);
+        }
     }
     modifyColumn(name: string, type: string): void {
         if (!this._columns.has(name)) {
@@ -57,7 +72,11 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         if (this.raw.length > 0) {
             throw new RDBError('COLUMN_IN_DANGER');
         }
-        this._columns.set(name, this.createColumnStructure(type));
+        const column = this.createColumnStructure(type);
+        this._columns.set(name, column);
+        for (const modify of this._colupd.modify) {
+            modify(name, column);
+        }
     }
     renameColumn(oldname: string, newname: string): void {
         if (!this._columns.has(oldname)) {
@@ -69,6 +88,22 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         const column = this._columns.get(oldname) as ColumnStructure;
         this._columns.delete(oldname);
         this._columns.set(newname, column);
+        for (const rename of this._colupd.rename) {
+            rename(oldname, newname);
+        }
+    }
+
+    onColumnRename(handler: (oldname: string, newname: string) => void): void {
+        this._colupd.rename.push(handler);
+    }
+    onColumnModify(handler: (colname: string, column: ColumnStructure) => void): void {
+        this._colupd.modify.push(handler);
+    }
+    onColumnAdd(handler: (colname: string, column: ColumnStructure) => void): void {
+        this._colupd.add.push(handler);
+    }
+    onColumnDrop(handler: (colname: string, column: ColumnStructure) => void): void {
+        this._colupd.drop.push(handler);
     }
 
     insert(o: object): RDBRow {
@@ -175,6 +210,19 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         }
         return rows;
     }
+    eachColumn(callback: (name: string, column: ColumnStructure) => void): void {
+        this._columns.forEach((column, name) => {
+            callback(name, column);
+        });
+    }
+    getColumn(colname: string): ColumnStructure {
+        const column = this._columns.get(colname);
+        if (!column) {
+            throw new RDBError('INVALID_COLUMN', colname);
+        }
+        return column;
+    }
+
 
     private validateRefTable(ref: State<string | RDBTable> | undefined): RDBTable {
         if (!ref) {
@@ -257,5 +305,9 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         table._upd.ins = [];
         table._upd.del = [];
         table._upd.set = [];
+        table._colupd.rename = [];
+        table._colupd.modify = [];
+        table._colupd.add = [];
+        table._colupd.drop = [];
     }
 }

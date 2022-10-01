@@ -5,7 +5,13 @@ import { RDBViewRow } from '../view/RDBView';
 import RDBViewBuilder from '../view/RDBViewBuilder';
 import RDBError from '../error/RDBError';
 
+export interface DBListeners {
+    tableCreate: ((name: string, table: RDBTable) => void)[];
+    tableDrop: ((name: string, table: RDBTable) => void)[];
+}
+
 export default class RDB {
+    private _listeners: DBListeners = { tableCreate: [], tableDrop: [] };
     private _tables: Map<string, RDBTable> = new Map();
     private _tablenames: WeakMap<RDBTable, string> = new WeakMap();
     private _refwaiters: Map<string, State<RDBTable | string>[]> = new Map();
@@ -25,7 +31,13 @@ export default class RDB {
             });
             this._refwaiters.delete(name);
         }
+        for (const create of this._listeners.tableCreate) {
+            create(name, table);
+        }
         return table;
+    }
+    hasTable(name: string): boolean {
+        return this._tables.has(name);
     }
     selectTable(name: string): RDBTable {
         const table = this._tables.get(name);
@@ -42,6 +54,9 @@ export default class RDB {
         RDBTable.drop(tb);
         this._tablenames.delete(tb);
         this._tables.delete(name);
+        for (const drop of this._listeners.tableDrop) {
+            drop(name, tb);
+        }
     }
     renameTable(oldname: string, newname: string): void {
         if (!this._tables.has(oldname)) {
@@ -72,6 +87,14 @@ export default class RDB {
         }
         return tableState;
     }
+
+    onTableCreate(listener: (name: string, table: RDBTable) => void): void {
+        this._listeners.tableCreate.push(listener);
+    }
+    onTableDrop(listener: (name: string, table: RDBTable) => void): void {
+        this._listeners.tableDrop.push(listener);
+    }
+
     static freezeView(view: StateList<RDBViewRow>): any {
         return view.raw.map(RDB.unbox);
     }
