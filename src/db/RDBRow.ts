@@ -1,6 +1,6 @@
 import { StateCollection, StateList } from '@aldinh777/reactive/collection';
 import RDBTable, { ColumnStructure } from './RDBTable';
-import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from './help';
+import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from '../help';
 import { State } from '@aldinh777/reactive';
 import RDBError from '../error/RDBError';
 

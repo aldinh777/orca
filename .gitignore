@@ -1,7 +1,5 @@
 node_modules
 .vscode
-src/*.js
-src/*.d.ts
-error/*.js
-error/*.d.ts
+src/**/*.js
+src/**/*.d.ts
 debug.js

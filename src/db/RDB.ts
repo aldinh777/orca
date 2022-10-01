@@ -1,8 +1,8 @@
 import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
 import RDBTable from './RDBTable';
-import { RDBViewRow } from './RDBView';
-import RDBViewBuilder from './RDBViewBuilder';
+import { RDBViewRow } from '../view/RDBView';
+import RDBViewBuilder from '../view/RDBViewBuilder';
 import RDBError from '../error/RDBError';
 
 export default class RDB {

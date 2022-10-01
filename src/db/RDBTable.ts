@@ -1,6 +1,6 @@
 import { State } from '@aldinh777/reactive';
 import { StateCollection, StateList } from '@aldinh777/reactive/collection';
-import { removeInside } from './help';
+import { removeInside } from '../help';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
 import RDBError from '../error/RDBError';

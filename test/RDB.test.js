@@ -1,4 +1,4 @@
-const { default: RDB } = require('../src/RDB');
+const { default: RDB } = require('../src/db/RDB');
 
 describe('Reactive Database', () => {
     const db = new RDB();

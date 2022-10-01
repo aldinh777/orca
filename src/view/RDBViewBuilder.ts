@@ -1,6 +1,6 @@
 import RDBError from '../error/RDBError';
-import RDB from './RDB';
-import RDBRow from './RDBRow';
+import RDB from '../db/RDB';
+import RDBRow from '../db/RDBRow';
 import RDBView, { ViewQuery } from './RDBView';
 
 export default class RDBViewBuilder {

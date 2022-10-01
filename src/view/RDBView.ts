@@ -2,10 +2,10 @@ import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
 import { Subscription } from '@aldinh777/reactive/util';
 import RDBError from '../error/RDBError';
-import { leach, removeDeeper, tableEach } from './help';
-import RDB from './RDB';
-import RDBRow from './RDBRow';
-import RDBTable from './RDBTable';
+import { leach, removeDeeper, tableEach } from '../help';
+import RDB from '../db/RDB';
+import RDBRow from '../db/RDBRow';
+import RDBTable from '../db/RDBTable';
 
 export interface RDBViewRow {
     id?: string;

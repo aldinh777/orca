@@ -1,9 +1,8 @@
-import { OperationHandler, StateCollection, StateList } from '@aldinh777/reactive/collection';
+import { OperationHandler, StateList } from '@aldinh777/reactive/collection';
 import { createMultiSubscriptions, Subscription } from '@aldinh777/reactive/util';
-import RDB from './RDB';
-import RDBRow from './RDBRow';
-import RDBTable from './RDBTable';
-import { RDBViewRow } from './RDBView';
+import RDBRow from './db/RDBRow';
+import RDBTable from './db/RDBTable';
+import { RDBViewRow } from './view/RDBView';
 
 /**
  * Digit limit for randomshit function for it to execute
