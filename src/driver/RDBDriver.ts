@@ -1,6 +1,18 @@
 import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import {
+    existsSync,
+    mkdirSync,
+    rmSync,
+    readFileSync,
+    writeFileSync,
+    renameSync,
+    readdirSync
+} from 'fs';
 import RDB from '../db/RDB';
+import { ColumnStructure } from '../db/RDBTable';
+import RDBRow from '../db/RDBRow';
+import { State } from '@aldinh777/reactive';
+import { StateList } from '@aldinh777/reactive/collection';
 
 /**
  *  _rdb_[db]
@@ -21,46 +33,183 @@ export default class RDBDriver {
         this.path = dbpath;
         this.db = db;
 
-        db.onTableCreate((name, table) => {
-            // do some suspicious thing to the table
-            table.eachColumn((name, column) => {
-                // column init maybe
-            });
-            table.onColumnRename((oldname, newname) => {
-                // what todo when column renamed?
-            });
-            table.onColumnAdd((name, column) => {
-                // coladd
-            });
-            table.onColumnDrop((name, column) => {
-                // cool and drip
-            });
-            table.onColumnModify((name, column) => {
-                // column modified
-            });
-
-            //do something 'dangeraus' to items
-            table.selectRows('*', (row) => {
-                // rows init pelhaps
-            });
-            table.onInsert((row) => {
-                // on row inselt
-            });
-            table.onDelete((row) => {
-                // on low delete
-            });
-            // uwu
-        });
-        db.onTableDrop((name, table) => {
-            // what to do when table drop?
-            // yeah, remove all files with said name
-        });
-
         if (existsSync(dbpath)) {
-            // code for reading existing db
+            const tables = readdirSync(join(dbpath, 'structures'));
+            for (const tablejson of tables) {
+                const structureText = readFileSync(join(dbpath, 'structures', tablejson));
+                const structure = JSON.parse(structureText.toString('utf8'));
+                const [tablename] = tablejson.split('.json');
+                const table = db.createTable(tablename, structure);
+                const rawvalues: Map<string, any> = new Map();
+                table.eachColumn((colname, { type }) => {
+                    const ids = readdirSync(join(dbpath, 'values', tablename, colname));
+                    for (const id of ids) {
+                        const valueText = readFileSync(
+                            join(dbpath, 'values', tablename, colname, id)
+                        );
+                        const valve = rawvalues.get(id) || {};
+                        if (!valve.id) {
+                            valve.id = id;
+                            rawvalues.set(id, valve);
+                        }
+                        if (type === 'string') {
+                            valve[colname] = valueText.toString();
+                        } else if (type === 'number') {
+                            const valueNumber = parseFloat(valueText.toString());
+                            valve[colname] = valueNumber;
+                        } else if (type === 'boolean') {
+                            valve[colname] = valueText.toString() === 'true';
+                        }
+                    }
+                });
+                const ravvvaluesbutarray = Array.from(rawvalues.values());
+                table.insertAll(ravvvaluesbutarray);
+            }
+            for (const tablejson of tables) {
+                const [tablename] = tablejson.split('.json');
+                const table = db.selectTable(tablename);
+                table.eachColumn((colname, { type, ref }) => {
+                    const ids = readdirSync(join(dbpath, 'values', tablename, colname));
+                    for (const id of ids) {
+                        const valueText = readFileSync(join(dbpath, 'values', tablename, colname, id));
+                        if (!ref) {
+                            return;
+                        }
+                        const reftable = ref.getValue();
+                        if (typeof reftable === 'string') {
+                            return;
+                        }
+                        if (type === 'ref') {
+                            const row = table.get(id);
+                            const ref = reftable.get(valueText.toString());
+                            if (ref) {
+                                row?.set(colname, ref);
+                            }
+                        } else if (type === 'refs') {
+                            const rowids = valueText.toString().split('\n');
+                            const refs = rowids
+                                .map((id) => reftable.get(id))
+                                .filter((r) => r !== undefined) as RDBRow[];
+                            const row = table.get(id);
+                            row?.addRefs(colname, ...refs);
+                        }
+                    }
+                });
+            }
         } else {
             mkdirSync(join(dbpath, 'structures'), { recursive: true });
             mkdirSync(join(dbpath, 'values'), { recursive: true });
+        }
+
+        db.onTableRename((oldname: string, newname: string) => {
+            const oldvadir = join(dbpath, 'values', oldname);
+            const newvadir = join(dbpath, 'values', newname);
+            const oldpath = join(dbpath, 'structures', `${oldname}.json`);
+            const newpath = join(dbpath, 'structures', `${newname}.json`);
+            renameSync(oldvadir, newvadir);
+            renameSync(oldpath, newpath);
+        });
+        db.onTableCreate((tablename, table) => {
+            // do some suspicious thing to the table
+            const structure: any = {};
+            const rewriteTableJson = (tablename: string) => {
+                if (tablename) {
+                    writeFileSync(
+                        join(dbpath, 'structures', `${tablename}.json`),
+                        JSON.stringify(structure, null, 2),
+                        'utf8'
+                    );
+                } else {
+                    throw Error('Table name invalid');
+                }
+            };
+            table.eachColumn((name, column) => {
+                structure[name] = RDBDriver.getColumnInfo(column);
+                mkdirSync(join(dbpath, 'values', tablename, name), { recursive: true });
+            });
+            rewriteTableJson(tablename);
+            table.onColumnRename((oldname, newname) => {
+                structure[newname] = structure[oldname];
+                delete structure[oldname];
+                rewriteTableJson(table.getName() || '');
+                renameSync(join(dbpath, 'values', oldname), join(dbpath, 'values', newname));
+            });
+            table.onColumnAdd((name, column) => {
+                structure[name] = RDBDriver.getColumnInfo(column);
+                rewriteTableJson(table.getName() || '');
+                mkdirSync(join(dbpath, 'values', name), { recursive: true });
+            });
+            table.onColumnDrop((name) => {
+                delete structure[name];
+                rewriteTableJson(table.getName() || '');
+                rmSync(join(dbpath, 'values', name), { recursive: true });
+            });
+            table.onColumnModify((name, column) => {
+                structure[name] = RDBDriver.getColumnInfo(column);
+                rewriteTableJson(table.getName() || '');
+            });
+
+            //do something 'dangeraus' to items
+            const writeValue = (colname: string, id: string, value: string) => {
+                const tablename = table.getName();
+                if (!tablename) {
+                    throw Error('table wrongfully victimized');
+                }
+                writeFileSync(join(dbpath, 'values', tablename, colname, id), value, 'utf8');
+            };
+            table.onInsert((id, row) => {
+                table.eachColumn((colname, column) => {
+                    writeValue(colname, id, RDBDriver.getTextValue(column, row));
+                });
+            });
+            table.onDelete((id) => {
+                table.eachColumn((colname) => {
+                    const tablename = table.getName();
+                    if (!tablename) {
+                        throw Error('undeletable resource');
+                    }
+                    rmSync(join(dbpath, 'values', tablename, colname, id));
+                });
+            });
+            // uwu
+        });
+        db.onTableDrop((name) => {
+            rmSync(join(dbpath, 'structures', `${name}.json`));
+            rmSync(join(dbpath, 'values', name), { recursive: true });
+        });
+    }
+
+    static getColumnInfo({ type, ref }: ColumnStructure): string {
+        if (type === 'string' || type === 'number' || type === 'boolean') {
+            return type;
+        } else if (ref) {
+            const tabref = ref.getValue();
+            if (typeof tabref === 'string') {
+                return `${type}:${tabref}`;
+            } else {
+                const tabname = tabref.getName();
+                if (tabname) {
+                    return `${type}:${tabname}`;
+                } else {
+                    throw Error('referenced table lost');
+                }
+            }
+        } else {
+            throw Error('reference lost');
+        }
+    }
+    static getTextValue({ type, values }: ColumnStructure, row: RDBRow): string {
+        const value = values.get(row);
+        if (type === 'string' || type === 'number' || type === 'boolean') {
+            return value.toString();
+        } else if (type === 'ref') {
+            const ref = (value as State<RDBRow | null>).getValue();
+            return ref ? ref.id : '';
+        } else if (type === 'refs') {
+            const refs = (value as StateList<RDBRow>).raw;
+            return refs.map((row) => row.id).join('\n');
+        } else {
+            throw Error('row has invalid column type');
         }
     }
 }

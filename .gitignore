@@ -3,3 +3,4 @@ node_modules
 src/**/*.js
 src/**/*.d.ts
 debug.js
+_rdb_*

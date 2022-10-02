@@ -170,14 +170,14 @@ export default class RDBView extends StateList<RDBViewRow> {
     }
     private selectAllProps(row: RDBRow, ob: RDBViewRow): void {
         ob.id = row.id;
-        row.eachColumn((key, { type, values }) => {
+        row.getTable().eachColumn((key, { type, values }) => {
             if (type !== 'ref' && type !== 'refs') {
                 ob[key] = new State(values.get(row));
             }
         });
     }
     private selectAllRefs(props: ViewQuery[], row: RDBRow, ob: RDBViewRow): void {
-        row.eachColumn((key, { type }) => {
+        row.getTable().eachColumn((key, { type }) => {
             if (type === 'ref' || type === 'refs') {
                 ob[key] = this.selectRef(key, props, row);
             }

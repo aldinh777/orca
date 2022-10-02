@@ -1,25 +1,25 @@
 import { StateCollection, StateList } from '@aldinh777/reactive/collection';
-import RDBTable, { ColumnStructure } from './RDBTable';
+import RDBTable from './RDBTable';
 import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from '../help';
 import { State } from '@aldinh777/reactive';
 import RDBError from '../error/RDBError';
 
 export default class RDBRow extends StateCollection<string, any, void> {
-    private _columns: Map<string, ColumnStructure>;
+    private _table: RDBTable;
     id: string;
 
-    constructor(columns: Map<string, ColumnStructure>) {
+    constructor(table: RDBTable, id: string = randomShit(AQUA_TAN_DIGIT_LIMIT)) {
         super();
-        this._columns = columns;
-        this.id = randomShit(AQUA_TAN_DIGIT_LIMIT);
+        this._table = table;
+        this.id = id;
     }
 
     get(colname: string): any {
-        const { values } = this.getColumn(colname);
+        const { values } = this._table.getColumn(colname);
         return values.get(this);
     }
     set(colname: string, value: any): this {
-        const { values, type, verify } = this.getColumn(colname);
+        const { values, type, verify } = this._table.getColumn(colname);
         if (!verify(value)) {
             throw new RDBError('IMPOSSIBLE');
         }
@@ -37,11 +37,11 @@ export default class RDBRow extends StateCollection<string, any, void> {
         return this;
     }
     has(colname: string): boolean {
-        const { values } = this.getColumn(colname);
+        const { values } = this._table.getColumn(colname);
         return values.has(this);
     }
     addRefs(colname: string, ...rows: RDBRow[]): void {
-        const { type, ref, values } = this.getColumn(colname);
+        const { type, ref, values } = this._table.getColumn(colname);
         if (type !== 'refs' || !ref) {
             throw new RDBError('REFS_ADD_FAILED', colname);
         }
@@ -66,7 +66,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
         }
     }
     deleteRefs(colname: string, filter: (row: RDBRow) => boolean): void {
-        const { type, values } = this.getColumn(colname);
+        const { type, values } = this._table.getColumn(colname);
         if (type !== 'refs') {
             throw new RDBError('REFS_DELETE_FAILED');
         }
@@ -78,7 +78,7 @@ export default class RDBRow extends StateCollection<string, any, void> {
         }
     }
     hasRef(colname: string, row: RDBRow): boolean {
-        const { type, values } = this.getColumn(colname);
+        const { type, values } = this._table.getColumn(colname);
         if (type === 'ref') {
             const ref = values.get(this) as State<RDBRow | null>;
             const refrow = ref.getValue();
@@ -90,17 +90,8 @@ export default class RDBRow extends StateCollection<string, any, void> {
             throw new RDBError('NOT_A_REFERENCE');
         }
     }
-    eachColumn(callback: (name: string, column: ColumnStructure) => void): void {
-        this._columns.forEach((column, name) => {
-            callback(name, column);
-        });
-    }
-    getColumn(colname: string): ColumnStructure {
-        const column = this._columns.get(colname);
-        if (!column) {
-            throw new RDBError('INVALID_COLUMN', colname);
-        }
-        return column;
+    getTable(): RDBTable {
+        return this._table;
     }
     static destroy(row: RDBRow): void {
         row._upd.ins = [];

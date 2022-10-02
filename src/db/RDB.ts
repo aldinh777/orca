@@ -6,12 +6,13 @@ import RDBViewBuilder from '../view/RDBViewBuilder';
 import RDBError from '../error/RDBError';
 
 export interface DBListeners {
+    tableRename: ((oldname: string, newname: string) => void)[];
     tableCreate: ((name: string, table: RDBTable) => void)[];
     tableDrop: ((name: string, table: RDBTable) => void)[];
 }
 
 export default class RDB {
-    private _listeners: DBListeners = { tableCreate: [], tableDrop: [] };
+    private _listeners: DBListeners = { tableRename: [], tableCreate: [], tableDrop: [] };
     private _tables: Map<string, RDBTable> = new Map();
     private _tablenames: WeakMap<RDBTable, string> = new WeakMap();
     private _refwaiters: Map<string, State<RDBTable | string>[]> = new Map();
@@ -88,6 +89,9 @@ export default class RDB {
         return tableState;
     }
 
+    onTableRename(listener: (oldname: string, newname: string) => void): void {
+        this._listeners.tableRename.push(listener);
+    }
     onTableCreate(listener: (name: string, table: RDBTable) => void): void {
         this._listeners.tableCreate.push(listener);
     }

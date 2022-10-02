@@ -39,7 +39,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
 
     get(id: string): RDBRow | undefined {
-        return this.selectRow((row) => row.get('id') === id);
+        return this.selectRow((row) => row.id === id);
     }
     set(_id: string, _value: RDBRow): this {
         throw new Error('Method not implemented, on purpose!');
@@ -107,11 +107,14 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
 
     insert(o: object): RDBRow {
-        const row = new RDBRow(this._columns);
+        const row = new RDBRow(this, Reflect.get(o, 'id'));
         // Iterate to be insert object and verify item
         for (const colname in o) {
             const value = (o as any)[colname];
             const column = this._columns.get(colname);
+            if (colname === 'id') {
+                continue;
+            }
             if (!column) {
                 throw new RDBError('INSERT_INVALID_COLUMN', colname, this.getName(), o);
             }
@@ -222,7 +225,6 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         }
         return column;
     }
-
 
     private validateRefTable(ref: State<string | RDBTable> | undefined): RDBTable {
         if (!ref) {

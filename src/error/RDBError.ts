@@ -78,7 +78,7 @@ export default class RDBError extends Error {
     code: string;
 
     constructor(code: string, ...rest: any[]) {
-        super(ERROR_CODES[code](...rest));
+        super(`[${code}]\n${ERROR_CODES[code](...rest)}`);
         this.name = 'RDBError';
         this.code = code;
     }
