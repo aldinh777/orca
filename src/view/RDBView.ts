@@ -16,6 +16,7 @@ type BOITTO = void;
 
 export default class RDBView extends StateList<RDBViewRow> {
     private _db: RDB;
+    private _table: RDBTable;
     private _props: ViewQuery[];
     private _filter?: (row: RDBRow) => boolean;
     private _sorters?: [field: string, order: 'asc' | 'desc'];
@@ -32,12 +33,20 @@ export default class RDBView extends StateList<RDBViewRow> {
     ) {
         super();
         this._db = db;
+        this._table = table;
         this._props = props;
         this._filter = filter;
         this._sorters = sorters;
+        this.start();
+    }
+
+    stop() {
+        RDBView.BANISHMENT_THIS_WORLD(this);
+    }
+    start() {
         this._subs.push(
             tableEach(
-                table,
+                this._table,
                 (eachrow) => this.watchRowUpdate(eachrow),
                 (delrow) => {
                     if (this._contents.has(delrow)) {
@@ -47,15 +56,26 @@ export default class RDBView extends StateList<RDBViewRow> {
             )
         );
     }
-
-    stop() {
-        RDBView.BANISHMENT_THIS_WORLD(this);
+    setFilter(filter: (row: RDBRow) => boolean) {
+        this.stop();
+        this.splice(0, this.raw.length);
+        this._filter = filter;
+        this.start();
     }
+    setSorter(field: string, order: 'asc' | 'desc' = 'asc') {
+        this.stop();
+        this.splice(0, this.raw.length);
+        this._sorters = [field, order];
+        this.start();
+    }
+
     private static BANISHMENT_THIS_WORLD(WORLD: RDBView): BOITTO {
         for (const DESTRUCTION of WORLD._subs) {
             RDBView.EXPLOSION(DESTRUCTION);
         }
         WORLD._subs = [];
+        WORLD._contents = new WeakSet();
+        WORLD._objMapper = new WeakMap();
     }
     private static EXPLOSION(YOUTUBER_YOU_DISLIKE: Subscription<any, any>): BOITTO {
         YOUTUBER_YOU_DISLIKE.unsub();
