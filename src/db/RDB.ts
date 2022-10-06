@@ -99,6 +99,10 @@ export default class RDB {
         this._listeners.tableDrop.push(listener);
     }
 
+    eachTable(callback: (name: string, table: RDBTable) => void): void {
+        this._tables.forEach((table, tablename) => callback(tablename, table));
+    }
+
     static freezeView(view: StateList<RDBViewRow>): any {
         return view.raw.map(RDB.unbox);
     }
