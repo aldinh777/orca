@@ -10,7 +10,7 @@ export default class RDBJsonAdapter {
             const json = await fetched.json();
             table.insertAll(json);
         } catch (err) {
-            console.log(err);
+            console.error(err);
         }
     }
     readJson(json: string, tablename: string, schema: object) {
