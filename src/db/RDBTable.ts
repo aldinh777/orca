@@ -1,9 +1,9 @@
 import { State } from '@aldinh777/reactive';
 import { StateCollection, StateList } from '@aldinh777/reactive/collection';
 import { removeInside } from '../help';
+import RDBError from '../error/RDBError';
 import RDB from './RDB';
 import RDBRow from './RDBRow';
-import RDBError from '../error/RDBError';
 
 export type columnType = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
 

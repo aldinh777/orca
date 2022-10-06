@@ -1,8 +1,8 @@
-import { StateCollection, StateList } from '@aldinh777/reactive/collection';
-import RDBTable from './RDBTable';
-import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from '../help';
 import { State } from '@aldinh777/reactive';
+import { StateCollection, StateList } from '@aldinh777/reactive/collection';
+import { AQUA_TAN_DIGIT_LIMIT, randomShit, removeInside } from '../help';
 import RDBError from '../error/RDBError';
+import RDBTable from './RDBTable';
 
 export default class RDBRow extends StateCollection<string, any, void> {
     private _table: RDBTable;

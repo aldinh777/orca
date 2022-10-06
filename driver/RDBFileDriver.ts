@@ -1,3 +1,5 @@
+import { State } from '@aldinh777/reactive';
+import { StateList } from '@aldinh777/reactive/collection';
 import { join } from 'path';
 import {
     existsSync,
@@ -8,11 +10,9 @@ import {
     renameSync,
     readdirSync
 } from 'fs';
-import RDB from '../db/RDB';
-import { ColumnStructure } from '../db/RDBTable';
-import RDBRow from '../db/RDBRow';
-import { State } from '@aldinh777/reactive';
-import { StateList } from '@aldinh777/reactive/collection';
+import { ColumnStructure } from '../src/db/RDBTable';
+import RDB from '../src/db/RDB';
+import RDBRow from '../src/db/RDBRow';
 
 /**
  *  _rdb_[db]

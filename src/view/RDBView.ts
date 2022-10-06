@@ -1,8 +1,8 @@
 import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
 import { Subscription } from '@aldinh777/reactive/util';
-import RDBError from '../error/RDBError';
 import { leach, removeDeeper, tableEach } from '../help';
+import RDBError from '../error/RDBError';
 import RDB from '../db/RDB';
 import RDBRow from '../db/RDBRow';
 import RDBTable from '../db/RDBTable';

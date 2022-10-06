@@ -1,9 +1,9 @@
 import { State } from '@aldinh777/reactive';
 import { StateList } from '@aldinh777/reactive/collection';
-import RDBTable from './RDBTable';
 import { RDBViewRow } from '../view/RDBView';
 import RDBViewBuilder from '../view/RDBViewBuilder';
 import RDBError from '../error/RDBError';
+import RDBTable from './RDBTable';
 
 export interface DBListeners {
     tableRename: ((oldname: string, newname: string) => void)[];
