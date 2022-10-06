@@ -13,4 +13,8 @@ export default class RDBJsonAdapter {
             console.log(err);
         }
     }
+    readJson(json: string, tablename: string, schema: object) {
+        const table = this.db.createTable(tablename, schema);
+        table.insertAll(JSON.parse(json));
+    }
 }
