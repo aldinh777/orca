@@ -4,7 +4,7 @@
   "description": "Database with reactivity",
   "main": "index.js",
   "dependencies": {
-    "@aldinh777/reactive": "^0.25.0"
+    "@aldinh777/reactive": "^0.25.1"
   },
   "devDependencies": {
     "jest": "^29.0.3",
