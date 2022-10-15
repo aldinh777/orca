@@ -1,4 +1,4 @@
-import { State } from '@aldinh777/reactive';
+import { State } from '@aldinh777/reactive/state/State';
 import RDBError from '../error/RDBError';
 import RDBTable from './RDBTable';
 

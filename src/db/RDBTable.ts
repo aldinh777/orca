@@ -1,5 +1,6 @@
-import { State } from '@aldinh777/reactive';
-import { StateCollection, StateList } from '@aldinh777/reactive/collection';
+import { State } from '@aldinh777/reactive/state/State';
+import { StateCollection } from '@aldinh777/reactive/collection/StateCollection';
+import { MutableStateList } from '@aldinh777/reactive/collection/MutableStateList';
 import { removeInside } from '../help';
 import RDBError from '../error/RDBError';
 import RDB from './RDB';
@@ -40,9 +41,6 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
 
     get(id: string): RDBRow | undefined {
         return this.selectRow((row) => row.id === id);
-    }
-    set(_id: string, _value: RDBRow): this {
-        throw new Error('Method not implemented, on purpose!');
     }
     hasRow(row: RDBRow): boolean {
         return this.raw.includes(row);
@@ -246,8 +244,8 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         });
         return refState;
     }
-    private createRefs(table: RDBTable, refs: RDBRow[]): StateList<RDBRow> {
-        const refflist = new StateList(refs);
+    private createRefs(table: RDBTable, refs: RDBRow[]): MutableStateList<RDBRow> {
+        const refflist = new MutableStateList(refs);
         table.onDelete((_, deleted) => {
             removeInside(refflist, deleted);
         });

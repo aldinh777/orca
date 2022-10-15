@@ -1,5 +1,5 @@
-import { State } from '@aldinh777/reactive';
-import { StateList } from '@aldinh777/reactive/collection';
+import { State } from '@aldinh777/reactive/state/State';
+import { StateList } from '@aldinh777/reactive/collection/StateList';
 import { join } from 'path';
 import {
     existsSync,

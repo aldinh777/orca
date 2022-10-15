@@ -1,8 +1,9 @@
-import { OperationHandler, StateList } from '@aldinh777/reactive/collection';
-import { createMultiSubscriptions, Subscription } from '@aldinh777/reactive/util';
+import { MutableStateList } from '@aldinh777/reactive/collection/MutableStateList';
+import { OperationHandler } from '@aldinh777/reactive/collection/StateCollection';
+import { StateList } from '@aldinh777/reactive/collection/StateList';
+import { createMultiSubscriptions, Subscription } from '@aldinh777/reactive/util/helper';
 import RDBRow from './db/RDBRow';
 import RDBTable from './db/RDBTable';
-import { RDBViewRow } from './view/RDBView';
 
 /**
  * Digit limit for randomshit function for it to execute
@@ -53,20 +54,9 @@ export function leach<B>(
     return createMultiSubscriptions(l, (_: number, row: B) => cbEach(row), subs);
 }
 
-export function removeInside<T>(list: StateList<T>, item: T): void {
+export function removeInside<T>(list: MutableStateList<T>, item: T): void {
     const index = list.raw.indexOf(item);
     if (index !== -1) {
         list.splice(index, 1);
-    }
-}
-
-export function removeDeeper(
-    list: StateList<RDBViewRow>,
-    row: RDBRow,
-    mapper: WeakMap<RDBRow, RDBViewRow>
-): void {
-    const ouch = mapper.get(row);
-    if (ouch) {
-        removeInside(list, ouch);
     }
 }
