@@ -1,7 +1,4 @@
 import { State } from '@aldinh777/reactive';
-import { StateList } from '@aldinh777/reactive/collection';
-import { RDBViewRow } from '../view/RDBView';
-import RDBViewBuilder from '../view/RDBViewBuilder';
 import RDBError from '../error/RDBError';
 import RDBTable from './RDBTable';
 
@@ -16,7 +13,6 @@ export default class RDB {
     private _tables: Map<string, RDBTable> = new Map();
     private _tablenames: WeakMap<RDBTable, string> = new WeakMap();
     private _refwaiters: Map<string, State<RDBTable | string>[]> = new Map();
-    query: RDBViewBuilder = new RDBViewBuilder(this);
 
     createTable(name: string, structure: object): RDBTable {
         if (this._tables.has(name)) {
@@ -101,31 +97,5 @@ export default class RDB {
 
     eachTable(callback: (name: string, table: RDBTable) => void): void {
         this._tables.forEach((table, tablename) => callback(tablename, table));
-    }
-
-    static freezeView(view: StateList<RDBViewRow>): any {
-        return view.raw.map(RDB.unbox);
-    }
-    private static unbox(o: any): any {
-        if (o === null) {
-            return null;
-        }
-        const p: any = {};
-        for (const k in o) {
-            const what = o[k];
-            if (what instanceof State) {
-                const whatvalue = what.getValue();
-                if (typeof whatvalue === 'object') {
-                    p[k] = RDB.unbox(whatvalue);
-                } else {
-                    p[k] = whatvalue;
-                }
-            } else if (what instanceof StateList) {
-                p[k] = RDB.freezeView(what);
-            } else {
-                p[k] = what;
-            }
-        }
-        return p;
     }
 }
