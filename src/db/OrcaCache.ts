@@ -3,7 +3,7 @@ import OrcaError from '../error/OrcaError';
 import OrcaModel from './OrcaModel';
 
 export interface ModelListener {
-    modelRename: ((oldname: string, newname: string) => void)[];
+    modelRename: ((oldName: string, newName: string) => void)[];
     modelCreate: ((name: string, model: OrcaModel) => void)[];
     modelDrop: ((name: string, model: OrcaModel) => void)[];
 }
@@ -55,17 +55,17 @@ export default class OrcaCache {
             drop(name, tb);
         }
     }
-    renameModel(oldname: string, newname: string): void {
-        if (!this._models.has(oldname)) {
-            throw new OrcaError('MODEL_RENAME_NOT_EXISTS', oldname, newname);
+    renameModel(oldName: string, newName: string): void {
+        if (!this._models.has(oldName)) {
+            throw new OrcaError('MODEL_RENAME_NOT_EXISTS', oldName, newName);
         }
-        if (this._models.has(newname)) {
-            throw new OrcaError('MODEL_CLONE_JUTSU', oldname, newname);
+        if (this._models.has(newName)) {
+            throw new OrcaError('MODEL_CLONE_JUTSU', oldName, newName);
         }
-        const tb = this._models.get(oldname) as OrcaModel;
-        this._models.delete(oldname);
-        this._models.set(newname, tb);
-        this._modelnames.set(tb, newname);
+        const tb = this._models.get(oldName) as OrcaModel;
+        this._models.delete(oldName);
+        this._models.set(newName, tb);
+        this._modelnames.set(tb, newName);
     }
     getModelName(model: OrcaModel): string | undefined {
         return this._modelnames.get(model);
@@ -86,7 +86,7 @@ export default class OrcaCache {
     }
 
     // Cache Events
-    onModelRename(listener: (oldname: string, newname: string) => void): void {
+    onModelRename(listener: (oldName: string, newName: string) => void): void {
         this._listeners.modelRename.push(listener);
     }
     onModelCreate(listener: (name: string, model: OrcaModel) => void): void {

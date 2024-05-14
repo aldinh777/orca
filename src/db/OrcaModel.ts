@@ -16,10 +16,10 @@ export interface ColumnStructure {
 }
 
 export interface ColumnListener {
-    rename: ((oldname: string, newname: string) => void)[];
-    modify: ((colname: string, column: ColumnStructure) => void)[];
-    add: ((colname: string, column: ColumnStructure) => void)[];
-    drop: ((colname: string, column: ColumnStructure) => void)[];
+    rename: ((oldName: string, newName: string) => void)[];
+    modify: ((columnName: string, column: ColumnStructure) => void)[];
+    add: ((columnName: string, column: ColumnStructure) => void)[];
+    drop: ((columnName: string, column: ColumnStructure) => void)[];
 }
 
 export default class OrcaModel {
@@ -76,59 +76,59 @@ export default class OrcaModel {
             modify(name, column);
         }
     }
-    renameColumn(oldname: string, newname: string): void {
-        if (!this._columns.has(oldname)) {
-            throw new OrcaError('COLUMN_RENAME_NOT_EXISTS', oldname, this.getName());
+    renameColumn(oldName: string, newName: string): void {
+        if (!this._columns.has(oldName)) {
+            throw new OrcaError('COLUMN_RENAME_NOT_EXISTS', oldName, this.getName());
         }
-        if (this._columns.has(newname)) {
-            throw new OrcaError('COLUMN_RENAME_TARGET_EXISTS', oldname, newname, this.getName());
+        if (this._columns.has(newName)) {
+            throw new OrcaError('COLUMN_RENAME_TARGET_EXISTS', oldName, newName, this.getName());
         }
-        const column = this._columns.get(oldname) as ColumnStructure;
-        this._columns.delete(oldname);
-        this._columns.set(newname, column);
+        const column = this._columns.get(oldName) as ColumnStructure;
+        this._columns.delete(oldName);
+        this._columns.set(newName, column);
         for (const rename of this._colupd.rename) {
-            rename(oldname, newname);
+            rename(oldName, newName);
         }
     }
 
-    onColumnRename(handler: (oldname: string, newname: string) => void): void {
+    onColumnRename(handler: (oldName: string, newName: string) => void): void {
         this._colupd.rename.push(handler);
     }
-    onColumnModify(handler: (colname: string, column: ColumnStructure) => void): void {
+    onColumnModify(handler: (columnName: string, column: ColumnStructure) => void): void {
         this._colupd.modify.push(handler);
     }
-    onColumnAdd(handler: (colname: string, column: ColumnStructure) => void): void {
+    onColumnAdd(handler: (columnName: string, column: ColumnStructure) => void): void {
         this._colupd.add.push(handler);
     }
-    onColumnDrop(handler: (colname: string, column: ColumnStructure) => void): void {
+    onColumnDrop(handler: (columnName: string, column: ColumnStructure) => void): void {
         this._colupd.drop.push(handler);
     }
 
     insert(o: object): OrcaRow {
         const row = new OrcaRow(this, Reflect.get(o, 'id'));
         // Iterate to be insert object and verify item
-        for (const colname in o) {
-            const value = (o as any)[colname];
-            const column = this._columns.get(colname);
-            if (colname === 'id') {
+        for (const columnName in o) {
+            const value = (o as any)[columnName];
+            const column = this._columns.get(columnName);
+            if (columnName === 'id') {
                 continue;
             }
             if (!column) {
-                throw new OrcaError('INSERT_INVALID_COLUMN', colname, this.getName(), o);
+                throw new OrcaError('INSERT_INVALID_COLUMN', columnName, this.getName(), o);
             }
             const { type, verify, values, ref } = column;
             if (type === 'ref' || type === 'refs') {
                 const model = this.validateRefModel(ref);
                 if (type === 'ref') {
                     if (typeof value !== 'object') {
-                        throw new OrcaError('INSERT_INVALID_REF', colname);
+                        throw new OrcaError('INSERT_INVALID_REF', columnName);
                     }
                     const ref = model.insert(value);
                     const refState = this.createRef(model, ref);
                     values.set(row, refState);
                 } else if (type === 'refs') {
                     if (!(value instanceof Array)) {
-                        throw new OrcaError('INSERT_INVALID_REFS', colname);
+                        throw new OrcaError('INSERT_INVALID_REFS', columnName);
                     }
                     const refs = model.insertAll(value);
                     const refferences = this.createRefs(model, refs);
@@ -207,10 +207,10 @@ export default class OrcaModel {
             callback(name, column);
         });
     }
-    getColumn(colname: string): ColumnStructure {
-        const column = this._columns.get(colname);
+    getColumn(columnName: string): ColumnStructure {
+        const column = this._columns.get(columnName);
         if (!column) {
-            throw new OrcaError('INVALID_COLUMN', colname);
+            throw new OrcaError('INVALID_COLUMN', columnName);
         }
         return column;
     }
