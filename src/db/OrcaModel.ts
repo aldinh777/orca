@@ -1,17 +1,18 @@
 import { state, type State } from '@aldinh777/reactive';
 import { list, type ReactiveList } from '@aldinh777/reactive/list';
 import { removeInside } from '../help';
-import RDBError from '../error/RDBError';
-import RDB from './RDB';
-import RDBRow from './RDBRow';
+import OrcaError from '../error/OrcaError';
+import OrcaCache from './OrcaCache';
+import OrcaRow from './OrcaRow';
 
-export type columnType = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
+export type ColumnTypeName = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
+export type ColumnType = string | number | boolean | State<OrcaRow | null> | ReactiveList<OrcaRow>;
 
 export interface ColumnStructure {
-    type: columnType;
+    type: ColumnTypeName;
     verify(value: any): boolean;
-    ref?: State<RDBTable | string>;
-    values: WeakMap<RDBRow, any>;
+    ref?: State<OrcaModel | string>;
+    values: WeakMap<OrcaRow, ColumnType>;
 }
 
 export interface ColumnListener {
@@ -21,13 +22,13 @@ export interface ColumnListener {
     drop: ((colname: string, column: ColumnStructure) => void)[];
 }
 
-export default class RDBTable {
-    rows = list<RDBRow>([]);
+export default class OrcaModel {
+    rows = list<OrcaRow>([]);
     private _colupd: ColumnListener = { modify: [], rename: [], add: [], drop: [] };
-    private _db: RDB;
+    private _db: OrcaCache;
     private _columns: Map<string, ColumnStructure> = new Map();
 
-    constructor(db: RDB, columns: object) {
+    constructor(db: OrcaCache, columns: object) {
         this._db = db;
         for (const column in columns) {
             const type: string = (columns as any)[column];
@@ -35,13 +36,13 @@ export default class RDBTable {
         }
     }
     getName(): string | undefined {
-        return this._db.getTableName(this);
+        return this._db.getModelName(this);
     }
 
-    get(id: string): RDBRow | undefined {
+    get(id: string): OrcaRow | undefined {
         return this.selectRow((row) => row.id === id);
     }
-    hasRow(row: RDBRow): boolean {
+    hasRow(row: OrcaRow): boolean {
         return this.rows().includes(row);
     }
 
@@ -54,7 +55,7 @@ export default class RDBTable {
     }
     dropColumn(name: string): void {
         if (!this._columns.has(name)) {
-            throw new RDBError('COLUMN_DROP_NOT_EXISTS', name, this.getName());
+            throw new OrcaError('COLUMN_DROP_NOT_EXISTS', name, this.getName());
         }
         const column = this._columns.get(name) as ColumnStructure;
         this._columns.delete(name);
@@ -64,10 +65,10 @@ export default class RDBTable {
     }
     modifyColumn(name: string, type: string): void {
         if (!this._columns.has(name)) {
-            throw new RDBError('COLUMN_NOT_EXISTS', name);
+            throw new OrcaError('COLUMN_NOT_EXISTS', name);
         }
         if (this.rows().length > 0) {
-            throw new RDBError('COLUMN_IN_DANGER');
+            throw new OrcaError('COLUMN_IN_DANGER');
         }
         const column = this.createColumnStructure(type);
         this._columns.set(name, column);
@@ -77,10 +78,10 @@ export default class RDBTable {
     }
     renameColumn(oldname: string, newname: string): void {
         if (!this._columns.has(oldname)) {
-            throw new RDBError('COLUMN_RENAME_NOT_EXISTS', oldname, this.getName());
+            throw new OrcaError('COLUMN_RENAME_NOT_EXISTS', oldname, this.getName());
         }
         if (this._columns.has(newname)) {
-            throw new RDBError('COLUMN_RENAME_TARGET_EXISTS', oldname, newname, this.getName());
+            throw new OrcaError('COLUMN_RENAME_TARGET_EXISTS', oldname, newname, this.getName());
         }
         const column = this._columns.get(oldname) as ColumnStructure;
         this._columns.delete(oldname);
@@ -103,8 +104,8 @@ export default class RDBTable {
         this._colupd.drop.push(handler);
     }
 
-    insert(o: object): RDBRow {
-        const row = new RDBRow(this, Reflect.get(o, 'id'));
+    insert(o: object): OrcaRow {
+        const row = new OrcaRow(this, Reflect.get(o, 'id'));
         // Iterate to be insert object and verify item
         for (const colname in o) {
             const value = (o as any)[colname];
@@ -113,24 +114,24 @@ export default class RDBTable {
                 continue;
             }
             if (!column) {
-                throw new RDBError('INSERT_INVALID_COLUMN', colname, this.getName(), o);
+                throw new OrcaError('INSERT_INVALID_COLUMN', colname, this.getName(), o);
             }
             const { type, verify, values, ref } = column;
             if (type === 'ref' || type === 'refs') {
-                const table = this.validateRefTable(ref);
+                const model = this.validateRefModel(ref);
                 if (type === 'ref') {
                     if (typeof value !== 'object') {
-                        throw new RDBError('INSERT_INVALID_REF', colname);
+                        throw new OrcaError('INSERT_INVALID_REF', colname);
                     }
-                    const ref = table.insert(value);
-                    const refState = this.createRef(table, ref);
+                    const ref = model.insert(value);
+                    const refState = this.createRef(model, ref);
                     values.set(row, refState);
                 } else if (type === 'refs') {
                     if (!(value instanceof Array)) {
-                        throw new RDBError('INSERT_INVALID_REFS', colname);
+                        throw new OrcaError('INSERT_INVALID_REFS', colname);
                     }
-                    const refs = table.insertAll(value);
-                    const refferences = this.createRefs(table, refs);
+                    const refs = model.insertAll(value);
+                    const refferences = this.createRefs(model, refs);
                     values.set(row, refferences);
                 }
             } else {
@@ -144,10 +145,10 @@ export default class RDBTable {
             if (!values.has(row)) {
                 switch (type) {
                     case 'ref':
-                        values.set(row, this.createRef(this.validateRefTable(ref)));
+                        values.set(row, this.createRef(this.validateRefModel(ref)));
                         break;
                     case 'refs':
-                        values.set(row, this.createRefs(this.validateRefTable(ref), []));
+                        values.set(row, this.createRefs(this.validateRefModel(ref), []));
                         break;
                     case 'string':
                         values.set(row, '');
@@ -159,21 +160,21 @@ export default class RDBTable {
                         values.set(row, false);
                         break;
                     default:
-                        throw new RDBError('WHAT_IS_HAPPENING', type);
+                        throw new OrcaError('WHAT_IS_HAPPENING', type);
                 }
             }
         });
         this.rows.push(row);
         return row;
     }
-    insertAll(obs: object[]): RDBRow[] {
-        const inserteds: RDBRow[] = [];
+    insertAll(obs: object[]): OrcaRow[] {
+        const inserteds: OrcaRow[] = [];
         for (const o of obs) {
             inserteds.push(this.insert(o));
         }
         return inserteds;
     }
-    delete(filter: '*' | ((row: RDBRow) => boolean)): void {
+    delete(filter: '*' | ((row: OrcaRow) => boolean)): void {
         const rawlist = this.rows();
         const dellist = rawlist.filter(filter === '*' ? () => true : filter);
         for (const delrow of dellist) {
@@ -181,7 +182,7 @@ export default class RDBTable {
             this.rows.splice(index, 1);
         }
     }
-    selectRow(filter: (row: RDBRow) => boolean, callback?: (row: RDBRow) => void): RDBRow | undefined {
+    selectRow(filter: (row: OrcaRow) => boolean, callback?: (row: OrcaRow) => void): OrcaRow | undefined {
         for (const row of this.rows()) {
             if (filter(row)) {
                 if (callback) {
@@ -191,7 +192,7 @@ export default class RDBTable {
             }
         }
     }
-    selectRows(filter: '*' | ((row: RDBRow) => boolean), callback?: (row: RDBRow) => void): RDBRow[] {
+    selectRows(filter: '*' | ((row: OrcaRow) => boolean), callback?: (row: OrcaRow) => void): OrcaRow[] {
         const rawlist = this.rows();
         const rows = filter === '*' ? [...rawlist] : rawlist.filter(filter);
         if (callback) {
@@ -209,34 +210,34 @@ export default class RDBTable {
     getColumn(colname: string): ColumnStructure {
         const column = this._columns.get(colname);
         if (!column) {
-            throw new RDBError('INVALID_COLUMN', colname);
+            throw new OrcaError('INVALID_COLUMN', colname);
         }
         return column;
     }
 
-    private validateRefTable(ref: State<string | RDBTable> | undefined): RDBTable {
+    private validateRefModel(ref: State<string | OrcaModel> | undefined): OrcaModel {
         if (!ref) {
-            throw new RDBError('TABLE_REF_INVALIDATED', this.getName());
+            throw new OrcaError('MODEL_REF_INVALIDATED', this.getName());
         }
-        const table = ref();
-        if (typeof table === 'string') {
-            throw new RDBError('TABLE_REF_UNRESOLVED', this.getName(), table);
+        const model = ref();
+        if (typeof model === 'string') {
+            throw new OrcaError('MODEL_REF_UNRESOLVED', this.getName(), model);
         }
-        return table;
+        return model;
     }
 
-    private createRef(table: RDBTable, ref?: RDBRow): State<RDBRow | null> {
+    private createRef(model: OrcaModel, ref?: OrcaRow): State<OrcaRow | null> {
         const refState = state(ref || null);
-        table.rows.onDelete((_, deleted) => {
+        model.rows.onDelete((_, deleted) => {
             if (deleted === refState()) {
                 refState(null);
             }
         });
         return refState;
     }
-    private createRefs(table: RDBTable, refs: RDBRow[]): ReactiveList<RDBRow> {
+    private createRefs(model: OrcaModel, refs: OrcaRow[]): ReactiveList<OrcaRow> {
         const refflist = list(refs);
-        table.rows.onDelete((_, deleted) => {
+        model.rows.onDelete((_, deleted) => {
             removeInside(refflist, deleted);
         });
         return refflist;
@@ -248,7 +249,7 @@ export default class RDBTable {
                 values: new WeakMap(),
                 verify: (value) => {
                     if (typeof value !== type) {
-                        throw new RDBError('TYPE_MISMATCH', type, value);
+                        throw new OrcaError('TYPE_MISMATCH', type, value);
                     }
                     return true;
                 }
@@ -256,21 +257,21 @@ export default class RDBTable {
         } else {
             const [refftype, refference] = type.split(':');
             if (refftype === 'ref') {
-                const ref = this._db.getTableRefference(refference);
+                const ref = this._db.getModelRelation(refference);
                 return {
                     type: refftype,
                     values: new WeakMap(),
                     ref: ref,
                     verify(value) {
-                        const table = ref();
-                        if (!(table instanceof RDBTable)) {
-                            throw new RDBError('REF_FAILED');
+                        const model = ref();
+                        if (!(model instanceof OrcaModel)) {
+                            throw new OrcaError('REF_FAILED');
                         }
-                        if (!(value instanceof RDBRow || value === null)) {
-                            throw new RDBError('REF_INVALID_TYPE');
+                        if (!(value instanceof OrcaRow || value === null)) {
+                            throw new OrcaError('REF_INVALID_TYPE');
                         }
-                        if (value && !table.hasRow(value)) {
-                            throw new RDBError('REF_ROW_DELETED');
+                        if (value && !model.hasRow(value)) {
+                            throw new OrcaError('REF_ROW_DELETED');
                         }
                         return true;
                     }
@@ -279,22 +280,22 @@ export default class RDBTable {
                 return {
                     type: refftype,
                     values: new WeakMap(),
-                    ref: this._db.getTableRefference(refference),
+                    ref: this._db.getModelRelation(refference),
                     verify() {
-                        throw new RDBError('ILLEGAL_REFS_SET');
+                        throw new OrcaError('ILLEGAL_REFS_SET');
                     }
                 };
             } else {
-                throw new RDBError('INVALID_TYPE', type);
+                throw new OrcaError('INVALID_TYPE', type);
             }
         }
     }
-    static drop(table: RDBTable): void {
-        table.delete('*');
-        table._columns.clear();
-        table._colupd.rename = [];
-        table._colupd.modify = [];
-        table._colupd.add = [];
-        table._colupd.drop = [];
+    static drop(model: OrcaModel): void {
+        model.delete('*');
+        model._columns.clear();
+        model._colupd.rename = [];
+        model._colupd.modify = [];
+        model._colupd.add = [];
+        model._colupd.drop = [];
     }
 }

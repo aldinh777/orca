@@ -1,7 +1,8 @@
-import { default as RDB } from '../src/db/RDB';
+import { describe, expect, it } from 'bun:test';
+import OrcaCache from '../src/db/OrcaCache';
 
 describe('Reactive DB Relations', () => {
-    const db = new RDB();
+    const db = new OrcaCache();
     const sampleData = [
         {
             name: 'ookie',
@@ -21,18 +22,18 @@ describe('Reactive DB Relations', () => {
             ]
         }
     ];
-    db.createTable('person', {
+    db.createModel('person', {
         name: 'string',
         phone: 'ref:phone',
         oshis: 'refs:person'
     });
-    db.createTable('phone', {
+    db.createModel('phone', {
         model: 'string'
     });
-    db.selectTable('person').insertAll(sampleData);
+    db.selectModel('person').insertAll(sampleData);
     describe('Manual Labor', () => {
         it('has valid oshis and phones', () => {
-            db.selectTable('person').selectRow(
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'ookie',
                 (row) => {
                     const phone = row.get('phone')();
@@ -40,7 +41,7 @@ describe('Reactive DB Relations', () => {
                     expect(row.get('oshis')().length).toBe(0);
                 }
             );
-            db.selectTable('person').selectRow(
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
                     const phone = row.get('phone')();
@@ -50,7 +51,7 @@ describe('Reactive DB Relations', () => {
             );
         });
         it('replace phone', () => {
-            db.selectTable('person').selectRow(
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'ookie',
                 (row) => {
                     row.set('phone', null);
@@ -58,27 +59,24 @@ describe('Reactive DB Relations', () => {
                     expect(phone).toBe(null);
                 }
             );
-            db.selectTable('person').selectRow(
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
-                    row.set('phone', db.selectTable('phone').insert({ model: 'motolola' }));
+                    row.set('phone', db.selectModel('phone').insert({ model: 'motolola' }));
                     const phone = row.get('phone')();
                     expect(phone.get('model')).toBe('motolola');
                 }
             );
         });
         it('add or delete oshis', () => {
-            db.selectTable('person').selectRow(
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'ookie',
                 (row) => {
-                    row.addRefs(
-                        'oshis',
-                        db.selectTable('person').selectRow((row) => row.get('name') === 'ennaur')
-                    );
+                    row.addRefs('oshis', db.selectModel('person').selectRow((row) => row.get('name') === 'ennaur')!);
                     expect(row.get('oshis')().length).toBe(1);
                 }
             );
-            db.selectTable('person').selectRow(
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
                     row.deleteRefs('oshis', (ref) => ref.get('name') === 'ennaur');
@@ -87,8 +85,8 @@ describe('Reactive DB Relations', () => {
             );
         });
         it('remove person`s phone depend on existing row', () => {
-            db.selectTable('phone').delete((row) => row.get('model') === 'motolola');
-            db.selectTable('person').selectRow(
+            db.selectModel('phone').delete((row) => row.get('model') === 'motolola');
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
                     const phone = row.get('phone')();
@@ -97,8 +95,8 @@ describe('Reactive DB Relations', () => {
             );
         });
         it('also remove oshis depend on rows', () => {
-            db.selectTable('person').delete((row) => row.get('name') === 'ennaur');
-            db.selectTable('person').selectRow(
+            db.selectModel('person').delete((row) => row.get('name') === 'ennaur');
+            db.selectModel('person').selectRow(
                 (row) => row.get('name') === 'ookie',
                 (row) => expect(row.get('oshis')().length).toBe(0)
             );
