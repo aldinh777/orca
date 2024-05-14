@@ -1,7 +1,5 @@
-import { MutableStateList } from '@aldinh777/reactive/collection/MutableStateList';
-import { OperationHandler } from '@aldinh777/reactive/collection/StateCollection';
-import { StateList } from '@aldinh777/reactive/collection/StateList';
-import { createMultiSubscriptions, Subscription } from '@aldinh777/reactive/util/helper';
+import type { Unsubscribe } from '@aldinh777/reactive/utils/subscription';
+import { type ReactiveList } from '@aldinh777/reactive/list';
 import RDBRow from './db/RDBRow';
 import RDBTable from './db/RDBTable';
 
@@ -26,36 +24,36 @@ export function randomShit(digit: number, radix: number = 36): string {
     );
 }
 
-export function tableEach(
-    table: RDBTable,
-    cbEach: (row: RDBRow) => void,
-    cbDel?: (row: RDBRow) => void
-): Subscription<RDBTable, OperationHandler<string, RDBRow>> {
+export function tableEach(table: RDBTable, cbEach: (row: RDBRow) => void, cbDel?: (row: RDBRow) => void): Unsubscribe {
     table.selectRows('*', cbEach);
-    const subs = [table.onInsert((_, inserted) => cbEach(inserted))];
+    const unsubs = [table.rows.onInsert((_, inserted) => cbEach(inserted))];
     if (cbDel) {
-        subs.push(table.onDelete((_, deleted) => cbDel(deleted)));
+        unsubs.push(table.rows.onDelete((_, deleted) => cbDel(deleted)));
     }
-    return createMultiSubscriptions(table, (_, row) => cbEach(row), subs);
+    return () => {
+        for (const unsub of unsubs) {
+            unsub();
+        }
+    };
 }
 
-export function leach<B>(
-    l: StateList<B>,
-    cbEach: (row: B) => void,
-    cbDel?: (row: B) => void
-): Subscription<StateList<B>, OperationHandler<number, B>> {
-    for (const b of l.raw) {
+export function leach<B>(l: ReactiveList<B>, cbEach: (row: B) => void, cbDel?: (row: B) => void): Unsubscribe {
+    for (const b of l()) {
         cbEach(b);
     }
-    const subs = [l.onInsert((_, inserted) => cbEach(inserted))];
+    const unsubs = [l.onInsert((_, inserted) => cbEach(inserted))];
     if (cbDel) {
-        subs.push(l.onDelete((_, deleted) => cbDel(deleted)));
+        unsubs.push(l.onDelete((_, deleted) => cbDel(deleted)));
     }
-    return createMultiSubscriptions(l, (_: number, row: B) => cbEach(row), subs);
+    return () => {
+        for (const unsub of unsubs) {
+            unsub();
+        }
+    };
 }
 
-export function removeInside<T>(list: MutableStateList<T>, item: T): void {
-    const index = list.raw.indexOf(item);
+export function removeInside<T>(list: ReactiveList<T>, item: T): void {
+    const index = list().indexOf(item);
     if (index !== -1) {
         list.splice(index, 1);
     }

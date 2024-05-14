@@ -1,16 +1,7 @@
-import { State } from '@aldinh777/reactive/state/State';
-import { StateList } from '@aldinh777/reactive/collection/StateList';
+import { type State } from '@aldinh777/reactive';
 import { join } from 'path';
-import {
-    existsSync,
-    mkdirSync,
-    rmSync,
-    readFileSync,
-    writeFileSync,
-    renameSync,
-    readdirSync
-} from 'fs';
-import RDBTable, { ColumnStructure } from '../src/db/RDBTable';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, renameSync, readdirSync } from 'fs';
+import RDBTable, { type ColumnStructure } from '../src/db/RDBTable';
 import RDB from '../src/db/RDB';
 import RDBRow from '../src/db/RDBRow';
 
@@ -106,10 +97,7 @@ export default class RDBFileDriver {
             }
         };
     }
-    private static setRowRefs(
-        table: RDBTable,
-        dbpath: string
-    ): (colname: string, column: ColumnStructure) => void {
+    private static setRowRefs(table: RDBTable, dbpath: string): (colname: string, column: ColumnStructure) => void {
         return (colname, { type, ref }) => {
             const tablename = table.getName();
             if (!tablename) {
@@ -121,7 +109,7 @@ export default class RDBFileDriver {
                 if (!ref) {
                     return;
                 }
-                const reftable = ref.getValue();
+                const reftable = ref();
                 if (typeof reftable === 'string') {
                     return;
                 }
@@ -133,9 +121,7 @@ export default class RDBFileDriver {
                     }
                 } else if (type === 'refs') {
                     const rowids = valueText.toString().split('\n');
-                    const refs = rowids
-                        .map((id) => reftable.get(id))
-                        .filter((r) => r !== undefined) as RDBRow[];
+                    const refs = rowids.map((id) => reftable.get(id)).filter((r) => r !== undefined) as RDBRow[];
                     const row = table.get(id);
                     row?.addRefs(colname, ...refs);
                 }
@@ -153,11 +139,7 @@ export default class RDBFileDriver {
             if (!tablename) {
                 throw Error('Table name invalid');
             }
-            writeFileSync(
-                join(dbpath, 'structures', `${tablename}.json`),
-                JSON.stringify(structure, null, 2),
-                'utf8'
-            );
+            writeFileSync(join(dbpath, 'structures', `${tablename}.json`), JSON.stringify(structure, null, 2), 'utf8');
         };
         table.eachColumn((name, column) => {
             structure[name] = RDBFileDriver.getColumnInfo(column);
@@ -192,18 +174,18 @@ export default class RDBFileDriver {
             }
             writeFileSync(join(dbpath, 'values', tablename, colname, id), value, 'utf8');
         };
-        table.onInsert((id, row) => {
+        table.rows.onInsert((_index, row) => {
             table.eachColumn((colname, column) => {
-                writeValue(colname, id, RDBFileDriver.getTextValue(column, row));
+                writeValue(colname, row.id, RDBFileDriver.getTextValue(column, row));
             });
         });
-        table.onDelete((id) => {
+        table.rows.onDelete((_index, row) => {
             table.eachColumn((colname) => {
                 const tablename = table.getName();
                 if (!tablename) {
                     throw Error('undeletable resource');
                 }
-                rmSync(join(dbpath, 'values', tablename, colname, id));
+                rmSync(join(dbpath, 'values', tablename, colname, row.id));
             });
         });
         // uwu
@@ -212,7 +194,7 @@ export default class RDBFileDriver {
         if (type === 'string' || type === 'number' || type === 'boolean') {
             return type;
         } else if (ref) {
-            const tabref = ref.getValue();
+            const tabref = ref();
             if (typeof tabref === 'string') {
                 return `${type}:${tabref}`;
             } else {
@@ -232,10 +214,10 @@ export default class RDBFileDriver {
         if (type === 'string' || type === 'number' || type === 'boolean') {
             return value.toString();
         } else if (type === 'ref') {
-            const ref = (value as State<RDBRow | null>).getValue();
+            const ref = (value as State<RDBRow | null>)();
             return ref ? ref.id : '';
         } else if (type === 'refs') {
-            const refs = (value as StateList<RDBRow>).raw;
+            const refs = (value as RDBTable).rows();
             return refs.map((row) => row.id).join('\n');
         } else {
             throw Error('row has invalid column type');

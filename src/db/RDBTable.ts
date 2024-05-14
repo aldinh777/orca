@@ -1,6 +1,5 @@
-import { State } from '@aldinh777/reactive/state/State';
-import { StateCollection } from '@aldinh777/reactive/collection/StateCollection';
-import { MutableStateList } from '@aldinh777/reactive/collection/MutableStateList';
+import { state, type State } from '@aldinh777/reactive';
+import { list, type ReactiveList } from '@aldinh777/reactive/list';
 import { removeInside } from '../help';
 import RDBError from '../error/RDBError';
 import RDB from './RDB';
@@ -14,6 +13,7 @@ export interface ColumnStructure {
     ref?: State<RDBTable | string>;
     values: WeakMap<RDBRow, any>;
 }
+
 export interface ColumnListener {
     rename: ((oldname: string, newname: string) => void)[];
     modify: ((colname: string, column: ColumnStructure) => void)[];
@@ -21,15 +21,14 @@ export interface ColumnListener {
     drop: ((colname: string, column: ColumnStructure) => void)[];
 }
 
-export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> {
+export default class RDBTable {
+    rows = list<RDBRow>([]);
     private _colupd: ColumnListener = { modify: [], rename: [], add: [], drop: [] };
     private _db: RDB;
     private _columns: Map<string, ColumnStructure> = new Map();
 
     constructor(db: RDB, columns: object) {
-        super();
         this._db = db;
-        this.raw = [];
         for (const column in columns) {
             const type: string = (columns as any)[column];
             this.addColumn(column, type);
@@ -43,7 +42,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         return this.selectRow((row) => row.id === id);
     }
     hasRow(row: RDBRow): boolean {
-        return this.raw.includes(row);
+        return this.rows().includes(row);
     }
 
     addColumn(name: string, type: string): void {
@@ -67,7 +66,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         if (!this._columns.has(name)) {
             throw new RDBError('COLUMN_NOT_EXISTS', name);
         }
-        if (this.raw.length > 0) {
+        if (this.rows().length > 0) {
             throw new RDBError('COLUMN_IN_DANGER');
         }
         const column = this.createColumnStructure(type);
@@ -164,8 +163,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                 }
             }
         });
-        this.raw.push(row);
-        this.trigger('ins', row.id, row);
+        this.rows.push(row);
         return row;
     }
     insertAll(obs: object[]): RDBRow[] {
@@ -176,20 +174,15 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         return inserteds;
     }
     delete(filter: '*' | ((row: RDBRow) => boolean)): void {
-        const rawlist = this.raw;
+        const rawlist = this.rows();
         const dellist = rawlist.filter(filter === '*' ? () => true : filter);
         for (const delrow of dellist) {
-            const index = rawlist.indexOf(delrow);
-            this.raw.splice(index, 1);
-            this.trigger('del', delrow.id, delrow);
-            RDBRow.destroy(delrow);
+            const index = this.rows().indexOf(delrow);
+            this.rows.splice(index, 1);
         }
     }
-    selectRow(
-        filter: (row: RDBRow) => boolean,
-        callback?: (row: RDBRow) => void
-    ): RDBRow | undefined {
-        for (const row of this.raw) {
+    selectRow(filter: (row: RDBRow) => boolean, callback?: (row: RDBRow) => void): RDBRow | undefined {
+        for (const row of this.rows()) {
             if (filter(row)) {
                 if (callback) {
                     callback(row);
@@ -198,11 +191,8 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
             }
         }
     }
-    selectRows(
-        filter: '*' | ((row: RDBRow) => boolean),
-        callback?: (row: RDBRow) => void
-    ): RDBRow[] {
-        const rawlist = this.raw;
+    selectRows(filter: '*' | ((row: RDBRow) => boolean), callback?: (row: RDBRow) => void): RDBRow[] {
+        const rawlist = this.rows();
         const rows = filter === '*' ? [...rawlist] : rawlist.filter(filter);
         if (callback) {
             for (const row of rows) {
@@ -228,7 +218,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
         if (!ref) {
             throw new RDBError('TABLE_REF_INVALIDATED', this.getName());
         }
-        const table = ref.getValue();
+        const table = ref();
         if (typeof table === 'string') {
             throw new RDBError('TABLE_REF_UNRESOLVED', this.getName(), table);
         }
@@ -236,17 +226,17 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     }
 
     private createRef(table: RDBTable, ref?: RDBRow): State<RDBRow | null> {
-        const refState = new State(ref || null);
-        table.onDelete((_, deleted) => {
-            if (deleted === refState.getValue()) {
-                refState.setValue(null);
+        const refState = state(ref || null);
+        table.rows.onDelete((_, deleted) => {
+            if (deleted === refState()) {
+                refState(null);
             }
         });
         return refState;
     }
-    private createRefs(table: RDBTable, refs: RDBRow[]): MutableStateList<RDBRow> {
-        const refflist = new MutableStateList(refs);
-        table.onDelete((_, deleted) => {
+    private createRefs(table: RDBTable, refs: RDBRow[]): ReactiveList<RDBRow> {
+        const refflist = list(refs);
+        table.rows.onDelete((_, deleted) => {
             removeInside(refflist, deleted);
         });
         return refflist;
@@ -272,7 +262,7 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
                     values: new WeakMap(),
                     ref: ref,
                     verify(value) {
-                        const table = ref.getValue();
+                        const table = ref();
                         if (!(table instanceof RDBTable)) {
                             throw new RDBError('REF_FAILED');
                         }
@@ -302,9 +292,6 @@ export default class RDBTable extends StateCollection<string, RDBRow, RDBRow[]> 
     static drop(table: RDBTable): void {
         table.delete('*');
         table._columns.clear();
-        table._upd.ins = [];
-        table._upd.del = [];
-        table._upd.set = [];
         table._colupd.rename = [];
         table._colupd.modify = [];
         table._colupd.add = [];

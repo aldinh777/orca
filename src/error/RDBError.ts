@@ -34,14 +34,11 @@ const ERROR_CODES: any = {
         `imvalid column '${colname}' when insert into table '${table}'\n` +
         `=== the object in question ===\n${JSON.stringify(o, null, 2)}`,
     INSERT_INVALID_REF: (colname: string) => `invalid type ref colum '${colname}' must object`,
-    INSERT_INVALID_REFS: (colname: string) =>
-        `invalud type refs sorri fot colum '${colname}' must array`,
-    WHAT_IS_HAPPENING: (type: string) =>
-        `this is not supposed to be happen! invalid column type '${type}'`,
+    INSERT_INVALID_REFS: (colname: string) => `invalud type refs sorri fot colum '${colname}' must array`,
+    WHAT_IS_HAPPENING: (type: string) => `this is not supposed to be happen! invalid column type '${type}'`,
     TABLE_REF_INVALIDATED: (table: string) => `somehow table refference lost at table '${table}'`,
     TABLE_REF_UNRESOLVED: (table: string, wait: string) =>
-        `table refference not yet resolved. still waiting for table '${wait}' to be created. \n` +
-        `waiter: '${table}'`,
+        `table refference not yet resolved. still waiting for table '${wait}' to be created. \n` + `waiter: '${table}'`,
     TYPE_MISMATCH: (type: string, value: any) =>
         `unmatching type when setting value. \nexpected: '${type}', reality: '${typeof value}'`,
     REF_FAILED: () => `failed getting refference`,
@@ -58,12 +55,10 @@ const ERROR_CODES: any = {
         `congratulation anyway`,
     NOT_A_STATE: () => `invalid refference not a state? why not? how?`,
     NOT_A_REFERENCE: (colname: string) => `column '${colname}' is not a reference`,
-    REFS_ADD_FAILED: (colname: string) =>
-        `fail adding refferences, '${colname}' is not a references`,
+    REFS_ADD_FAILED: (colname: string) => `fail adding refferences, '${colname}' is not a references`,
     REFS_ADD_TYPE_MISMATCH: (colname: string, row: any) =>
         `type mismatch when adding ref to '${colname}'. type: '${typeof row}'`,
-    REFS_ADD_TABLE_MISMATCH: (colname: string) =>
-        `table row mismatch when trying to add ref '${colname}'`,
+    REFS_ADD_TABLE_MISMATCH: (colname: string) => `table row mismatch when trying to add ref '${colname}'`,
     REFS_DELETE_FAILED: () => `fail deleteing refferences, reason unclear`,
     REFS_UNRESOLVED: () => `unresolved refferences`,
     INVALID_COLUMN: (colname: string) => `invalid column '${colname}' accessing from row`,

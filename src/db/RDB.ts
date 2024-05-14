@@ -1,4 +1,4 @@
-import { State } from '@aldinh777/reactive/state/State';
+import { state, type State } from '@aldinh777/reactive';
 import RDBError from '../error/RDBError';
 import RDBTable from './RDBTable';
 
@@ -24,7 +24,7 @@ export default class RDB {
         if (this._refwaiters.has(name)) {
             const waitlist = this._refwaiters.get(name);
             waitlist?.forEach((tableState) => {
-                tableState.setValue(table);
+                tableState(table);
             });
             this._refwaiters.delete(name);
         }
@@ -72,9 +72,9 @@ export default class RDB {
     }
     getTableRefference(name: string): State<RDBTable | string> {
         const table = this._tables.get(name);
-        const tableState = new State(name as RDBTable | string);
+        const tableState = state(name as RDBTable | string);
         if (table) {
-            tableState.setValue(table);
+            tableState(table);
         } else {
             if (!this._refwaiters.has(name)) {
                 this._refwaiters.set(name, []);

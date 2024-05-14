@@ -1,4 +1,4 @@
-const { default: RDB } = require('../src/db/RDB');
+import { default as RDB } from '../src/db/RDB';
 
 describe('Reactive DB Relations', () => {
     const db = new RDB();
@@ -35,17 +35,17 @@ describe('Reactive DB Relations', () => {
             db.selectTable('person').selectRow(
                 (row) => row.get('name') === 'ookie',
                 (row) => {
-                    const phone = row.get('phone').getValue();
+                    const phone = row.get('phone')();
                     expect(phone.get('model')).toBe('nookiea');
-                    expect(row.get('oshis').raw.length).toBe(0);
+                    expect(row.get('oshis')().length).toBe(0);
                 }
             );
             db.selectTable('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
-                    const phone = row.get('phone').getValue();
+                    const phone = row.get('phone')();
                     expect(phone).toBe(null);
-                    expect(row.get('oshis').raw.length).toBe(2);
+                    expect(row.get('oshis')().length).toBe(2);
                 }
             );
         });
@@ -54,7 +54,7 @@ describe('Reactive DB Relations', () => {
                 (row) => row.get('name') === 'ookie',
                 (row) => {
                     row.set('phone', null);
-                    const phone = row.get('phone').getValue();
+                    const phone = row.get('phone')();
                     expect(phone).toBe(null);
                 }
             );
@@ -62,7 +62,7 @@ describe('Reactive DB Relations', () => {
                 (row) => row.get('name') === 'millei',
                 (row) => {
                     row.set('phone', db.selectTable('phone').insert({ model: 'motolola' }));
-                    const phone = row.get('phone').getValue();
+                    const phone = row.get('phone')();
                     expect(phone.get('model')).toBe('motolola');
                 }
             );
@@ -75,14 +75,14 @@ describe('Reactive DB Relations', () => {
                         'oshis',
                         db.selectTable('person').selectRow((row) => row.get('name') === 'ennaur')
                     );
-                    expect(row.get('oshis').raw.length).toBe(1);
+                    expect(row.get('oshis')().length).toBe(1);
                 }
             );
             db.selectTable('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
                     row.deleteRefs('oshis', (ref) => ref.get('name') === 'ennaur');
-                    expect(row.get('oshis').raw.length).toBe(1);
+                    expect(row.get('oshis')().length).toBe(1);
                 }
             );
         });
@@ -91,7 +91,7 @@ describe('Reactive DB Relations', () => {
             db.selectTable('person').selectRow(
                 (row) => row.get('name') === 'millei',
                 (row) => {
-                    const phone = row.get('phone').getValue();
+                    const phone = row.get('phone')();
                     expect(phone).toBe(null);
                 }
             );
@@ -100,7 +100,7 @@ describe('Reactive DB Relations', () => {
             db.selectTable('person').delete((row) => row.get('name') === 'ennaur');
             db.selectTable('person').selectRow(
                 (row) => row.get('name') === 'ookie',
-                (row) => expect(row.get('oshis').raw.length).toBe(0)
+                (row) => expect(row.get('oshis')().length).toBe(0)
             );
         });
     });

@@ -5,15 +5,16 @@
   "main": "src/db/RDB.js",
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "clean": "tsc --build --clean"
   },
   "author": "aldinh777",
   "license": "ISC",
   "dependencies": {
-    "@aldinh777/reactive": "^0.27.1"
+    "@aldinh777/reactive": "^0.36.0"
   },
+  "type": "module",
   "devDependencies": {
-    "jest": "^29.0.3",
-    "typescript": "^4.8.3"
+    "@types/bun": "^1.1.2",
+    "typescript": "^5.4.5"
   }
 }

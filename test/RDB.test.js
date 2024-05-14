@@ -1,4 +1,4 @@
-const { default: RDB } = require('../src/db/RDB');
+import RDB from '../src/db/RDB';
 
 describe('Reactive Database', () => {
     const db = new RDB();
@@ -56,7 +56,7 @@ describe('Reactive Database', () => {
             expect(user.get('age')).toBe(26);
         });
         it('table rows deletion', () => {
-            db.selectTable('user').delete(() => true);
+            db.selectTable('user').delete('*');
             const users = db.selectTable('user').selectRows('*');
             expect(users.length).toBe(0);
         });
