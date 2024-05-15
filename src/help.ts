@@ -1,8 +1,8 @@
 import type { Unsubscribe } from '@aldinh777/reactive/utils/subscription';
 import type { State } from '@aldinh777/reactive';
 import type { ReactiveList } from '@aldinh777/reactive/list';
-import OrcaRow from './db/OrcaRow';
-import OrcaModel from './db/OrcaModel';
+import Row from './db/Row';
+import Model from './db/Model';
 
 /**
  * Digit limit for randomshit function for it to execute
@@ -25,18 +25,18 @@ export function randomShit(digit: number, radix: number = 36): string {
     );
 }
 
-export function isRefference(obj: unknown): obj is State<OrcaRow | null> {
+export function isRefference(obj: unknown): obj is State<Row | null> {
     return typeof obj === 'function' && 'onChange' in obj;
 }
 
-export function isRefferences(obj: unknown): obj is ReactiveList<OrcaRow> {
+export function isRefferences(obj: unknown): obj is ReactiveList<Row> {
     return typeof obj === 'function' && 'onInsert' in obj && 'onDelete' in obj && 'onUpdate' in obj;
 }
 
 export function modelEach(
-    model: OrcaModel,
-    cbEach: (row: OrcaRow) => void,
-    cbDel?: (row: OrcaRow) => void
+    model: Model,
+    cbEach: (row: Row) => void,
+    cbDel?: (row: Row) => void
 ): Unsubscribe {
     model.selectRows('*', cbEach);
     const unsubs = [model.rows.onInsert((_, inserted) => cbEach(inserted))];

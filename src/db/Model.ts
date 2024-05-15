@@ -2,17 +2,17 @@ import { state, type State } from '@aldinh777/reactive';
 import { list, type ReactiveList } from '@aldinh777/reactive/list';
 import { removeInside } from '../help';
 import OrcaError from '../error/OrcaError';
-import OrcaCache from './OrcaCache';
-import OrcaRow from './OrcaRow';
+import Cache from './Cache';
+import Row from './Row';
 
 export type ColumnTypeName = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
-export type ColumnType = string | number | boolean | State<OrcaRow | null> | ReactiveList<OrcaRow>;
+export type ColumnType = string | number | boolean | State<Row | null> | ReactiveList<Row>;
 
 export interface ColumnStructure {
     type: ColumnTypeName;
     verify(value: any): boolean;
-    ref?: State<OrcaModel | string>;
-    values: WeakMap<OrcaRow, ColumnType>;
+    ref?: State<Model | string>;
+    values: WeakMap<Row, ColumnType>;
 }
 
 export interface ColumnListener {
@@ -22,13 +22,13 @@ export interface ColumnListener {
     drop: ((columnName: string, column: ColumnStructure) => void)[];
 }
 
-export default class OrcaModel {
-    rows = list<OrcaRow>([]);
+export default class Model {
+    rows = list<Row>([]);
     private _colupd: ColumnListener = { modify: [], rename: [], add: [], drop: [] };
-    private _db: OrcaCache;
+    private _db: Cache;
     private _columns: Map<string, ColumnStructure> = new Map();
 
-    constructor(db: OrcaCache, columns: object) {
+    constructor(db: Cache, columns: object) {
         this._db = db;
         for (const column in columns) {
             const type: string = (columns as any)[column];
@@ -39,10 +39,10 @@ export default class OrcaModel {
         return this._db.getModelName(this);
     }
 
-    get(id: string): OrcaRow | undefined {
+    get(id: string): Row | undefined {
         return this.selectRow((row) => row.id === id);
     }
-    hasRow(row: OrcaRow): boolean {
+    hasRow(row: Row): boolean {
         return this.rows().includes(row);
     }
 
@@ -104,8 +104,8 @@ export default class OrcaModel {
         this._colupd.drop.push(handler);
     }
 
-    insert(o: object): OrcaRow {
-        const row = new OrcaRow(this, Reflect.get(o, 'id'));
+    insert(o: object): Row {
+        const row = new Row(this, Reflect.get(o, 'id'));
         // Iterate to be insert object and verify item
         for (const columnName in o) {
             const value = (o as any)[columnName];
@@ -167,14 +167,14 @@ export default class OrcaModel {
         this.rows.push(row);
         return row;
     }
-    insertAll(obs: object[]): OrcaRow[] {
-        const inserteds: OrcaRow[] = [];
+    insertAll(obs: object[]): Row[] {
+        const inserteds: Row[] = [];
         for (const o of obs) {
             inserteds.push(this.insert(o));
         }
         return inserteds;
     }
-    delete(filter: '*' | ((row: OrcaRow) => boolean)): void {
+    delete(filter: '*' | ((row: Row) => boolean)): void {
         const rawlist = this.rows();
         const dellist = rawlist.filter(filter === '*' ? () => true : filter);
         for (const delrow of dellist) {
@@ -182,7 +182,7 @@ export default class OrcaModel {
             this.rows.splice(index, 1);
         }
     }
-    selectRow(filter: (row: OrcaRow) => boolean, callback?: (row: OrcaRow) => void): OrcaRow | undefined {
+    selectRow(filter: (row: Row) => boolean, callback?: (row: Row) => void): Row | undefined {
         for (const row of this.rows()) {
             if (filter(row)) {
                 if (callback) {
@@ -192,7 +192,7 @@ export default class OrcaModel {
             }
         }
     }
-    selectRows(filter: '*' | ((row: OrcaRow) => boolean), callback?: (row: OrcaRow) => void): OrcaRow[] {
+    selectRows(filter: '*' | ((row: Row) => boolean), callback?: (row: Row) => void): Row[] {
         const rawlist = this.rows();
         const rows = filter === '*' ? [...rawlist] : rawlist.filter(filter);
         if (callback) {
@@ -215,7 +215,7 @@ export default class OrcaModel {
         return column;
     }
 
-    private validateRefModel(ref: State<string | OrcaModel> | undefined): OrcaModel {
+    private validateRefModel(ref: State<string | Model> | undefined): Model {
         if (!ref) {
             throw new OrcaError('MODEL_REF_INVALIDATED', this.getName());
         }
@@ -226,7 +226,7 @@ export default class OrcaModel {
         return model;
     }
 
-    private createRef(model: OrcaModel, ref?: OrcaRow): State<OrcaRow | null> {
+    private createRef(model: Model, ref?: Row): State<Row | null> {
         const refState = state(ref || null);
         model.rows.onDelete((_, deleted) => {
             if (deleted === refState()) {
@@ -235,7 +235,7 @@ export default class OrcaModel {
         });
         return refState;
     }
-    private createRefs(model: OrcaModel, refs: OrcaRow[]): ReactiveList<OrcaRow> {
+    private createRefs(model: Model, refs: Row[]): ReactiveList<Row> {
         const refflist = list(refs);
         model.rows.onDelete((_, deleted) => {
             removeInside(refflist, deleted);
@@ -264,10 +264,10 @@ export default class OrcaModel {
                     ref: ref,
                     verify(value) {
                         const model = ref();
-                        if (!(model instanceof OrcaModel)) {
+                        if (!(model instanceof Model)) {
                             throw new OrcaError('REF_FAILED');
                         }
-                        if (!(value instanceof OrcaRow || value === null)) {
+                        if (!(value instanceof Row || value === null)) {
                             throw new OrcaError('REF_INVALID_TYPE');
                         }
                         if (value && !model.hasRow(value)) {
@@ -290,7 +290,7 @@ export default class OrcaModel {
             }
         }
     }
-    static drop(model: OrcaModel): void {
+    static drop(model: Model): void {
         model.delete('*');
         model._columns.clear();
         model._colupd.rename = [];

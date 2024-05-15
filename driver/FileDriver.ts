@@ -1,9 +1,9 @@
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, renameSync, readdirSync } from 'fs';
 import { isRefference, isRefferences } from '../src/help';
-import OrcaModel, { type ColumnStructure } from '../src/db/OrcaModel';
-import OrcaCache from '../src/db/OrcaCache';
-import OrcaRow from '../src/db/OrcaRow';
+import Model, { type ColumnStructure } from '../src/db/Model';
+import Cache from '../src/db/Cache';
+import Row from '../src/db/Row';
 
 /**
  *  _rdb_[db]
@@ -14,13 +14,13 @@ import OrcaRow from '../src/db/OrcaRow';
  *              [column]
  *                  [row id]    > value
  */
-export default class OrcaFileDriver {
+export default class FileDriver {
     path: string;
-    db: OrcaCache;
+    db: Cache;
 
     constructor(name: string = 'default', path: string = process.cwd()) {
         const dbPath = join(path, `_rdb_${name}`);
-        const db = new OrcaCache();
+        const db = new Cache();
         this.path = dbPath;
         this.db = db;
 
@@ -32,22 +32,22 @@ export default class OrcaFileDriver {
                 const [modelName] = modelJson.split('.json');
                 const model = db.createModel(modelName, structure);
                 const rawValues: Map<string, any> = new Map();
-                model.eachColumn(OrcaFileDriver.setRowNatives(model, dbPath, rawValues));
+                model.eachColumn(FileDriver.setRowNatives(model, dbPath, rawValues));
                 const ravvValuesButArray = Array.from(rawValues.values());
                 model.insertAll(ravvValuesButArray);
             }
             for (const modelJson of models) {
                 const [modelName] = modelJson.split('.json');
                 const model = db.selectModel(modelName);
-                model.eachColumn(OrcaFileDriver.setRowRefs(model, dbPath));
+                model.eachColumn(FileDriver.setRowRefs(model, dbPath));
             }
         } else {
             mkdirSync(join(dbPath, 'structures'), { recursive: true });
             mkdirSync(join(dbPath, 'values'), { recursive: true });
         }
 
-        db.eachModel((_, model) => OrcaFileDriver.observeModel(model, this.path));
-        db.onModelCreate((_, model) => OrcaFileDriver.observeModel(model, this.path));
+        db.eachModel((_, model) => FileDriver.observeModel(model, this.path));
+        db.onModelCreate((_, model) => FileDriver.observeModel(model, this.path));
         db.onModelDrop((name) => {
             rmSync(join(dbPath, 'structures', `${name}.json`));
             rmSync(join(dbPath, 'values', name), { recursive: true });
@@ -68,7 +68,7 @@ export default class OrcaFileDriver {
         }
     }
 
-    private static setRowNatives(model: OrcaModel, dbPath: string, rawValues: Map<string, any>) {
+    private static setRowNatives(model: Model, dbPath: string, rawValues: Map<string, any>) {
         return (columnName: string, { type }: ColumnStructure) => {
             const modelName = model.getName();
             if (!modelName) {
@@ -93,7 +93,7 @@ export default class OrcaFileDriver {
             }
         };
     }
-    private static setRowRefs(model: OrcaModel, dbpath: string) {
+    private static setRowRefs(model: Model, dbpath: string) {
         return (columnName: string, { type, ref }: ColumnStructure) => {
             const modelName = model.getName();
             if (!modelName) {
@@ -117,14 +117,14 @@ export default class OrcaFileDriver {
                     }
                 } else if (type === 'refs') {
                     const rowids = valueText.toString().split('\n');
-                    const refs = rowids.map((id) => refModel.get(id)).filter((r) => r !== undefined) as OrcaRow[];
+                    const refs = rowids.map((id) => refModel.get(id)).filter((r) => r !== undefined) as Row[];
                     const row = model.get(id);
                     row?.addRefs(columnName, ...refs);
                 }
             }
         };
     }
-    private static observeModel(model: OrcaModel, dbpath: string) {
+    private static observeModel(model: Model, dbpath: string) {
         // do some suspicious thing to the model
         const modelName = model.getName();
         if (!modelName) {
@@ -138,7 +138,7 @@ export default class OrcaFileDriver {
             writeFileSync(join(dbpath, 'structures', `${modelName}.json`), JSON.stringify(structure, null, 2), 'utf8');
         };
         model.eachColumn((name, column) => {
-            structure[name] = OrcaFileDriver.getColumnInfo(column);
+            structure[name] = FileDriver.getColumnInfo(column);
             mkdirSync(join(dbpath, 'values', modelName, name), { recursive: true });
         });
         rewriteModelJson(modelName);
@@ -149,7 +149,7 @@ export default class OrcaFileDriver {
             renameSync(join(dbpath, 'values', oldName), join(dbpath, 'values', newName));
         });
         model.onColumnAdd((name, column) => {
-            structure[name] = OrcaFileDriver.getColumnInfo(column);
+            structure[name] = FileDriver.getColumnInfo(column);
             rewriteModelJson(model.getName() || '');
             mkdirSync(join(dbpath, 'values', name), { recursive: true });
         });
@@ -159,7 +159,7 @@ export default class OrcaFileDriver {
             rmSync(join(dbpath, 'values', name), { recursive: true });
         });
         model.onColumnModify((name, column) => {
-            structure[name] = OrcaFileDriver.getColumnInfo(column);
+            structure[name] = FileDriver.getColumnInfo(column);
             rewriteModelJson(model.getName() || '');
         });
         //do something 'dangeraus' to items
@@ -172,7 +172,7 @@ export default class OrcaFileDriver {
         };
         model.rows.onInsert((_index, row) => {
             model.eachColumn((columnName, column) => {
-                writeValue(columnName, row.id, OrcaFileDriver.getTextValue(column, row));
+                writeValue(columnName, row.id, FileDriver.getTextValue(column, row));
             });
         });
         model.rows.onDelete((_index, row) => {
@@ -205,7 +205,7 @@ export default class OrcaFileDriver {
             throw Error('reference lost');
         }
     }
-    private static getTextValue({ values }: ColumnStructure, row: OrcaRow): string {
+    private static getTextValue({ values }: ColumnStructure, row: Row): string {
         const value = values.get(row);
         if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
             return value.toString();

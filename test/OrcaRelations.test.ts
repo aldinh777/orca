@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import OrcaCache from '../src/db/OrcaCache';
+import OrcaCache from '../src/db/Cache';
 
 describe('Reactive DB Relations', () => {
     const db = new OrcaCache();
