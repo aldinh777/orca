@@ -88,7 +88,4 @@ export default class Row {
             throw new OrcaError('NOT_A_REFERENCE');
         }
     }
-    getModel(): Model {
-        return this._model;
-    }
 }

@@ -9,19 +9,20 @@ import Column from './Column';
 export default class Model {
     rows = list<Row>([]);
     private _db: OrcaDB;
+    private _name: string;
     private _columns: Map<string, Column> = new Map();
 
-    constructor(db: OrcaDB, columns: object) {
+    constructor(db: OrcaDB, _name: string, columns: object) {
         this._db = db;
-        for (const column in columns) {
-            const type: string = (columns as any)[column];
-            this.addColumn(column, type);
+        this._name = _name;
+        for (const columnName in columns) {
+            const type: string = (columns as any)[columnName];
+            const column = this.createColumnStructure(type);
+            this._columns.set(columnName, column);
         }
     }
-    getName(): string | undefined {
-        return this._db.getModelName(this);
-    }
 
+    // Direct Row Operations
     get(id: string): Row | undefined {
         return this.selectRow((row) => row.id === id);
     }
@@ -29,11 +30,7 @@ export default class Model {
         return this.rows().includes(row);
     }
 
-    addColumn(name: string, type: string): void {
-        const column = this.createColumnStructure(type);
-        this._columns.set(name, column);
-    }
-
+    // Row Operations
     insert(o: object): Row {
         const row = new Row(this, Reflect.get(o, 'id'));
         // Iterate to be insert object and verify item
@@ -44,7 +41,7 @@ export default class Model {
                 continue;
             }
             if (!column) {
-                throw new OrcaError('INSERT_INVALID_COLUMN', columnName, this.getName(), o);
+                throw new OrcaError('INSERT_INVALID_COLUMN', columnName, this._name, o);
             }
             const { type, verify, values, ref } = column;
             if (type === 'ref' || type === 'refs') {
@@ -147,11 +144,11 @@ export default class Model {
 
     private validateRefModel(ref: State<string | Model> | undefined): Model {
         if (!ref) {
-            throw new OrcaError('MODEL_REF_INVALIDATED', this.getName());
+            throw new OrcaError('MODEL_REF_INVALIDATED', this._name);
         }
         const model = ref();
         if (typeof model === 'string') {
-            throw new OrcaError('MODEL_REF_UNRESOLVED', this.getName(), model);
+            throw new OrcaError('MODEL_REF_UNRESOLVED', this._name, model);
         }
         return model;
     }

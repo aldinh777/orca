@@ -4,16 +4,14 @@ import Model from './Model';
 
 export default class OrcaDB {
     private _models: Map<string, Model> = new Map();
-    private _modelnames: WeakMap<Model, string> = new WeakMap();
     private _refwaiters: Map<string, State<Model | string>[]> = new Map();
 
     createModel(name: string, structure: object): Model {
-        if (this._models.has(name)) {
+        if (this.hasModel(name)) {
             throw new OrcaError('MODEL_EXISTS', name);
         }
-        const model = new Model(this, structure);
+        const model = new Model(this, name, structure);
         this._models.set(name, model);
-        this._modelnames.set(model, name);
         if (this._refwaiters.has(name)) {
             const waitlist = this._refwaiters.get(name);
             waitlist?.forEach((modelState) => {
@@ -32,9 +30,6 @@ export default class OrcaDB {
             throw new OrcaError('MODEL_NOT_EXISTS', name);
         }
         return model;
-    }
-    getModelName(model: Model): string | undefined {
-        return this._modelnames.get(model);
     }
     getModelRelation(name: string): State<Model | string> {
         const model = this._models.get(name);
