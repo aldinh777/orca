@@ -15,16 +15,8 @@ export interface ColumnStructure {
     values: WeakMap<Row, ColumnType>;
 }
 
-export interface ColumnListener {
-    rename: ((oldName: string, newName: string) => void)[];
-    modify: ((columnName: string, column: ColumnStructure) => void)[];
-    add: ((columnName: string, column: ColumnStructure) => void)[];
-    drop: ((columnName: string, column: ColumnStructure) => void)[];
-}
-
 export default class Model {
     rows = list<Row>([]);
-    private _colupd: ColumnListener = { modify: [], rename: [], add: [], drop: [] };
     private _db: OrcaDB;
     private _columns: Map<string, ColumnStructure> = new Map();
 
@@ -49,59 +41,6 @@ export default class Model {
     addColumn(name: string, type: string): void {
         const column = this.createColumnStructure(type);
         this._columns.set(name, column);
-        for (const add of this._colupd.add) {
-            add(name, column);
-        }
-    }
-    dropColumn(name: string): void {
-        if (!this._columns.has(name)) {
-            throw new OrcaError('COLUMN_DROP_NOT_EXISTS', name, this.getName());
-        }
-        const column = this._columns.get(name) as ColumnStructure;
-        this._columns.delete(name);
-        for (const drop of this._colupd.drop) {
-            drop(name, column);
-        }
-    }
-    modifyColumn(name: string, type: string): void {
-        if (!this._columns.has(name)) {
-            throw new OrcaError('COLUMN_NOT_EXISTS', name);
-        }
-        if (this.rows().length > 0) {
-            throw new OrcaError('COLUMN_IN_DANGER');
-        }
-        const column = this.createColumnStructure(type);
-        this._columns.set(name, column);
-        for (const modify of this._colupd.modify) {
-            modify(name, column);
-        }
-    }
-    renameColumn(oldName: string, newName: string): void {
-        if (!this._columns.has(oldName)) {
-            throw new OrcaError('COLUMN_RENAME_NOT_EXISTS', oldName, this.getName());
-        }
-        if (this._columns.has(newName)) {
-            throw new OrcaError('COLUMN_RENAME_TARGET_EXISTS', oldName, newName, this.getName());
-        }
-        const column = this._columns.get(oldName) as ColumnStructure;
-        this._columns.delete(oldName);
-        this._columns.set(newName, column);
-        for (const rename of this._colupd.rename) {
-            rename(oldName, newName);
-        }
-    }
-
-    onColumnRename(handler: (oldName: string, newName: string) => void): void {
-        this._colupd.rename.push(handler);
-    }
-    onColumnModify(handler: (columnName: string, column: ColumnStructure) => void): void {
-        this._colupd.modify.push(handler);
-    }
-    onColumnAdd(handler: (columnName: string, column: ColumnStructure) => void): void {
-        this._colupd.add.push(handler);
-    }
-    onColumnDrop(handler: (columnName: string, column: ColumnStructure) => void): void {
-        this._colupd.drop.push(handler);
     }
 
     insert(o: object): Row {
@@ -289,13 +228,5 @@ export default class Model {
                 throw new OrcaError('INVALID_TYPE', type);
             }
         }
-    }
-    static drop(model: Model): void {
-        model.delete('*');
-        model._columns.clear();
-        model._colupd.rename = [];
-        model._colupd.modify = [];
-        model._colupd.add = [];
-        model._colupd.drop = [];
     }
 }
