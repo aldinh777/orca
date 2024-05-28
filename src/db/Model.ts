@@ -4,21 +4,12 @@ import { removeInside } from '../help';
 import OrcaError from '../error/OrcaError';
 import OrcaDB from './OrcaDB';
 import Row from './Row';
-
-export type ColumnTypeName = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
-export type ColumnType = string | number | boolean | State<Row | null> | ReactiveList<Row>;
-
-export interface ColumnStructure {
-    type: ColumnTypeName;
-    verify(value: any): boolean;
-    ref?: State<Model | string>;
-    values: WeakMap<Row, ColumnType>;
-}
+import Column from './Column';
 
 export default class Model {
     rows = list<Row>([]);
     private _db: OrcaDB;
-    private _columns: Map<string, ColumnStructure> = new Map();
+    private _columns: Map<string, Column> = new Map();
 
     constructor(db: OrcaDB, columns: object) {
         this._db = db;
@@ -141,12 +132,12 @@ export default class Model {
         }
         return rows;
     }
-    eachColumn(callback: (name: string, column: ColumnStructure) => void): void {
+    eachColumn(callback: (name: string, column: Column) => void): void {
         this._columns.forEach((column, name) => {
             callback(name, column);
         });
     }
-    getColumn(columnName: string): ColumnStructure {
+    getColumn(columnName: string): Column {
         const column = this._columns.get(columnName);
         if (!column) {
             throw new OrcaError('INVALID_COLUMN', columnName);
@@ -181,27 +172,21 @@ export default class Model {
         });
         return refflist;
     }
-    private createColumnStructure(type: string): ColumnStructure {
+    private createColumnStructure(type: string): Column {
         if (type === 'string' || type === 'number' || type === 'boolean') {
-            return {
-                type: type,
-                values: new WeakMap(),
-                verify: (value) => {
-                    if (typeof value !== type) {
-                        throw new OrcaError('TYPE_MISMATCH', type, value);
-                    }
-                    return true;
+            return new Column(type, (value) => {
+                if (typeof value !== type) {
+                    throw new OrcaError('TYPE_MISMATCH', type, value);
                 }
-            };
+                return true;
+            });
         } else {
             const [refftype, refference] = type.split(':');
             if (refftype === 'ref') {
                 const ref = this._db.getModelRelation(refference);
-                return {
-                    type: refftype,
-                    values: new WeakMap(),
-                    ref: ref,
-                    verify(value) {
+                return new Column(
+                    refftype,
+                    (value) => {
                         const model = ref();
                         if (!(model instanceof Model)) {
                             throw new OrcaError('REF_FAILED');
@@ -213,17 +198,17 @@ export default class Model {
                             throw new OrcaError('REF_ROW_DELETED');
                         }
                         return true;
-                    }
-                };
+                    },
+                    ref
+                );
             } else if (refftype === 'refs') {
-                return {
-                    type: refftype,
-                    values: new WeakMap(),
-                    ref: this._db.getModelRelation(refference),
-                    verify() {
+                return new Column(
+                    refftype,
+                    () => {
                         throw new OrcaError('ILLEGAL_REFS_SET');
-                    }
-                };
+                    },
+                    this._db.getModelRelation(refference)
+                );
             } else {
                 throw new OrcaError('INVALID_TYPE', type);
             }
