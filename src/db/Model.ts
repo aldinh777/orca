@@ -2,7 +2,7 @@ import { state, type State } from '@aldinh777/reactive';
 import { list, type ReactiveList } from '@aldinh777/reactive/list';
 import { removeInside } from '../help';
 import OrcaError from '../error/OrcaError';
-import Cache from './Cache';
+import OrcaDB from './OrcaDB';
 import Row from './Row';
 
 export type ColumnTypeName = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
@@ -25,10 +25,10 @@ export interface ColumnListener {
 export default class Model {
     rows = list<Row>([]);
     private _colupd: ColumnListener = { modify: [], rename: [], add: [], drop: [] };
-    private _db: Cache;
+    private _db: OrcaDB;
     private _columns: Map<string, ColumnStructure> = new Map();
 
-    constructor(db: Cache, columns: object) {
+    constructor(db: OrcaDB, columns: object) {
         this._db = db;
         for (const column in columns) {
             const type: string = (columns as any)[column];
