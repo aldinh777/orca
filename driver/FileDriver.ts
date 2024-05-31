@@ -2,7 +2,7 @@ import { join } from 'path';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, renameSync, readdirSync } from 'fs';
 import { isRefference, isRefferences } from '../src/help';
 import Model, { type ColumnStructure } from '../src/db/Model';
-import OrcaDB from '../src/db/OrcaDB';
+import Database from '../src/db/Database';
 import Row from '../src/db/Row';
 
 /**
@@ -16,11 +16,11 @@ import Row from '../src/db/Row';
  */
 export default class FileDriver {
     path: string;
-    db: OrcaDB;
+    db: Database;
 
     constructor(name: string = 'default', path: string = process.cwd()) {
         const dbPath = join(path, `_rdb_${name}`);
-        const db = new OrcaDB();
+        const db = new Database();
         this.path = dbPath;
         this.db = db;
 

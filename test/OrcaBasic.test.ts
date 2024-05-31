@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import OrcaDB from '../src/db/OrcaDB';
+import OrcaDB from '../src/db/Database';
 import Model from '../src/db/Model';
 
 describe('Common Operations', () => {

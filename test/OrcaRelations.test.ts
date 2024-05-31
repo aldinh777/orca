@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import DB from '../src/db/OrcaDB';
+import DB from '../src/db/Database';
 
 describe('Relational Operations', () => {
     const db = new DB();

@@ -1,20 +1,30 @@
-import type { State } from '@aldinh777/reactive';
-import type { ReactiveList } from '@aldinh777/reactive/list';
+import OrcaError from '../error/OrcaError';
 import type Model from './Model';
 import type Row from './Row';
 
-export type ColumnTypeName = 'string' | 'number' | 'boolean' | 'ref' | 'refs';
-export type ColumnType = string | number | boolean | State<Row | null> | ReactiveList<Row>;
+export default class Column<T = any, U = any> {
+    private values: WeakMap<Row, U> = new WeakMap();
+    private transform: (value: T) => U;
+    private refModel?: Model | string;
 
-export default class Column<T extends ColumnType = any> {
-    values: WeakMap<Row, T> = new WeakMap();
-    type: ColumnTypeName;
-    verify: (value: any) => boolean;
-    ref?: State<Model | string>;
+    constructor(transform: (value: T) => U, ref?: string | Model) {
+        this.transform = transform;
+        this.refModel = ref;
+    }
+    getValue(row: Row) {
+        this.values.get(row);
+    }
+    setValue(row: Row, value: T) {
+        this.values.set(row, this.transform(value));
+    }
 
-    constructor(type: ColumnTypeName, verify: (value: any) => boolean, ref?: State<string | Model>) {
-        this.type = type;
-        this.verify = verify;
-        this.ref = ref;
+    getRefModel(source: string): Model {
+        if (!this.refModel) {
+            throw new OrcaError('MODEL_REF_INVALIDATED', source);
+        }
+        if (typeof this.refModel === 'string') {
+            throw new OrcaError('MODEL_REF_UNRESOLVED', source, this.refModel);
+        }
+        return this.refModel;
     }
 }

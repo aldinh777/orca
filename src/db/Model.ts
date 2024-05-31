@@ -1,23 +1,18 @@
-import { state, type State } from '@aldinh777/reactive';
-import { list, type ReactiveList } from '@aldinh777/reactive/list';
-import { removeInside } from '../help';
+import { list } from '@aldinh777/reactive/list';
 import OrcaError from '../error/OrcaError';
-import OrcaDB from './OrcaDB';
 import Row from './Row';
 import Column from './Column';
 
 export default class Model {
     rows = list<Row>([]);
-    private _db: OrcaDB;
     private _name: string;
     private _columns: Map<string, Column> = new Map();
+    private _refwaitlist: Set<string> = new Set();
 
-    constructor(db: OrcaDB, _name: string, columns: object) {
-        this._db = db;
-        this._name = _name;
+    constructor(name: string, columns: Record<string, Column>) {
+        this._name = name;
         for (const columnName in columns) {
-            const type: string = (columns as any)[columnName];
-            const column = this.createColumnStructure(type);
+            const column = columns[columnName];
             this._columns.set(columnName, column);
         }
     }
@@ -31,66 +26,20 @@ export default class Model {
     }
 
     // Row Operations
-    insert(o: object): Row {
-        const row = new Row(this, Reflect.get(o, 'id'));
+    insert(objInput: Record<string, any>): Row {
+        const row = new Row(this, Reflect.get(objInput, 'id'));
         // Iterate to be insert object and verify item
-        for (const columnName in o) {
-            const value = (o as any)[columnName];
-            const column = this._columns.get(columnName);
+        for (const columnName in objInput) {
             if (columnName === 'id') {
                 continue;
             }
+            const value = objInput[columnName];
+            const column = this._columns.get(columnName);
             if (!column) {
-                throw new OrcaError('INSERT_INVALID_COLUMN', columnName, this._name, o);
+                throw new OrcaError('INSERT_INVALID_COLUMN', columnName, this._name, objInput);
             }
-            const { type, verify, values, ref } = column;
-            if (type === 'ref' || type === 'refs') {
-                const model = this.validateRefModel(ref);
-                if (type === 'ref') {
-                    if (typeof value !== 'object') {
-                        throw new OrcaError('INSERT_INVALID_REF', columnName);
-                    }
-                    const ref = model.insert(value);
-                    const refState = this.createRef(model, ref);
-                    values.set(row, refState);
-                } else if (type === 'refs') {
-                    if (!(value instanceof Array)) {
-                        throw new OrcaError('INSERT_INVALID_REFS', columnName);
-                    }
-                    const refs = model.insertAll(value);
-                    const refferences = this.createRefs(model, refs);
-                    values.set(row, refferences);
-                }
-            } else {
-                verify(value);
-                values.set(row, value);
-            }
+            column.setValue(row, value);
         }
-        // Iterate structure ensure everything mandatory is filled
-        this._columns.forEach((column) => {
-            const { type, values, ref } = column;
-            if (!values.has(row)) {
-                switch (type) {
-                    case 'ref':
-                        values.set(row, this.createRef(this.validateRefModel(ref)));
-                        break;
-                    case 'refs':
-                        values.set(row, this.createRefs(this.validateRefModel(ref), []));
-                        break;
-                    case 'string':
-                        values.set(row, '');
-                        break;
-                    case 'number':
-                        values.set(row, 0);
-                        break;
-                    case 'boolean':
-                        values.set(row, false);
-                        break;
-                    default:
-                        throw new OrcaError('WHAT_IS_HAPPENING', type);
-                }
-            }
-        });
         this.rows.push(row);
         return row;
     }
@@ -140,75 +89,5 @@ export default class Model {
             throw new OrcaError('INVALID_COLUMN', columnName);
         }
         return column;
-    }
-
-    private validateRefModel(ref: State<string | Model> | undefined): Model {
-        if (!ref) {
-            throw new OrcaError('MODEL_REF_INVALIDATED', this._name);
-        }
-        const model = ref();
-        if (typeof model === 'string') {
-            throw new OrcaError('MODEL_REF_UNRESOLVED', this._name, model);
-        }
-        return model;
-    }
-
-    private createRef(model: Model, ref?: Row): State<Row | null> {
-        const refState = state(ref || null);
-        model.rows.onDelete((_, deleted) => {
-            if (deleted === refState()) {
-                refState(null);
-            }
-        });
-        return refState;
-    }
-    private createRefs(model: Model, refs: Row[]): ReactiveList<Row> {
-        const refflist = list(refs);
-        model.rows.onDelete((_, deleted) => {
-            removeInside(refflist, deleted);
-        });
-        return refflist;
-    }
-    private createColumnStructure(type: string): Column {
-        if (type === 'string' || type === 'number' || type === 'boolean') {
-            return new Column(type, (value) => {
-                if (typeof value !== type) {
-                    throw new OrcaError('TYPE_MISMATCH', type, value);
-                }
-                return true;
-            });
-        } else {
-            const [refftype, refference] = type.split(':');
-            if (refftype === 'ref') {
-                const ref = this._db.getModelRelation(refference);
-                return new Column(
-                    refftype,
-                    (value) => {
-                        const model = ref();
-                        if (!(model instanceof Model)) {
-                            throw new OrcaError('REF_FAILED');
-                        }
-                        if (!(value instanceof Row || value === null)) {
-                            throw new OrcaError('REF_INVALID_TYPE');
-                        }
-                        if (value && !model.hasRow(value)) {
-                            throw new OrcaError('REF_ROW_DELETED');
-                        }
-                        return true;
-                    },
-                    ref
-                );
-            } else if (refftype === 'refs') {
-                return new Column(
-                    refftype,
-                    () => {
-                        throw new OrcaError('ILLEGAL_REFS_SET');
-                    },
-                    this._db.getModelRelation(refference)
-                );
-            } else {
-                throw new OrcaError('INVALID_TYPE', type);
-            }
-        }
     }
 }
