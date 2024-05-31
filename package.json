@@ -1,18 +1,13 @@
 {
   "name": "reactive-db",
   "version": "0.1.2",
-  "description": "Database with reactivity",
-  "main": "src/db/RDB.js",
-  "scripts": {
-    "build": "tsc",
-    "clean": "tsc --build --clean"
-  },
   "author": "aldinh777",
+  "description": "Database with reactivity",
+  "type": "module",
   "license": "ISC",
   "dependencies": {
-    "@aldinh777/reactive": "^0.36.0"
+    "@aldinh777/reactive": "npm:@jsr/aldinh777__reactive@0.36.5"
   },
-  "type": "module",
   "devDependencies": {
     "@types/bun": "^1.1.2",
     "typescript": "^5.4.5"
