@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import OrcaDB from '../src/db/Database';
 import Model from '../src/db/Model';
+import { bool, int, varchar } from '../src/db/ColumnTypes';
 
 describe('Common Operations', () => {
     const db = new OrcaDB();
@@ -10,9 +11,9 @@ describe('Common Operations', () => {
 
         it('model creation', () => {
             userModel = db.createModel('user', {
-                name: 'string',
-                age: 'number',
-                isekaied: 'boolean'
+                name: varchar(),
+                age: int(),
+                isekaied: bool()
             });
         });
 
@@ -48,6 +49,8 @@ describe('Common Operations', () => {
 
         it('select from rows', () => {
             const users = db.selectModel('user').selectRows('*');
+            console.log(users[0].get('name'));
+            
             const adultUsers = db.selectModel('user').selectRows((row) => row.get('age') > 20);
             expect(users.length).toBe(4);
             expect(adultUsers.length).toBe(2);

@@ -1,10 +1,10 @@
-import { list } from '@aldinh777/reactive/list';
 import OrcaError from '../error/OrcaError';
 import Row from './Row';
 import Column from './Column';
 
 export default class Model {
-    rows = list<Row>([]);
+    private rows = new Map<string, Row>();
+    private _row_ids = new WeakMap<Row, string>();
     private _name: string;
     private _columns: Map<string, Column> = new Map();
     private _refwaitlist: Set<string> = new Set();
@@ -22,7 +22,7 @@ export default class Model {
         return this.selectRow((row) => row.id === id);
     }
     hasRow(row: Row): boolean {
-        return this.rows().includes(row);
+        return this._row_ids.has(row);
     }
 
     // Row Operations
@@ -40,7 +40,8 @@ export default class Model {
             }
             column.setValue(row, value);
         }
-        this.rows.push(row);
+        this.rows.set(row.id, row);
+        this._row_ids.set(row, row.id);
         return row;
     }
     insertAll(obs: object[]): Row[] {
@@ -51,15 +52,18 @@ export default class Model {
         return inserteds;
     }
     delete(filter: '*' | ((row: Row) => boolean)): void {
-        const rawlist = this.rows();
+        const rawlist = [...this.rows.values()];
         const dellist = rawlist.filter(filter === '*' ? () => true : filter);
         for (const delrow of dellist) {
-            const index = this.rows().indexOf(delrow);
-            this.rows.splice(index, 1);
+            const index = this._row_ids.get(delrow);
+            if (index) {
+                this.rows.delete(index);
+                this._row_ids.delete(delrow);
+            }
         }
     }
     selectRow(filter: (row: Row) => boolean, callback?: (row: Row) => void): Row | undefined {
-        for (const row of this.rows()) {
+        for (const row of this.rows.values()) {
             if (filter(row)) {
                 if (callback) {
                     callback(row);
@@ -69,7 +73,7 @@ export default class Model {
         }
     }
     selectRows(filter: '*' | ((row: Row) => boolean), callback?: (row: Row) => void): Row[] {
-        const rawlist = this.rows();
+        const rawlist = [...this.rows.values()];
         const rows = filter === '*' ? [...rawlist] : rawlist.filter(filter);
         if (callback) {
             for (const row of rows) {

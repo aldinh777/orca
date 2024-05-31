@@ -2,7 +2,7 @@ import OrcaError from '../error/OrcaError';
 import type Model from './Model';
 import type Row from './Row';
 
-export default class Column<T = any, U = any> {
+export default class Column<T = any, U = T> {
     private values: WeakMap<Row, U> = new WeakMap();
     private transform: (value: T) => U;
     private refModel?: Model | string;
@@ -12,7 +12,7 @@ export default class Column<T = any, U = any> {
         this.refModel = ref;
     }
     getValue(row: Row) {
-        this.values.get(row);
+        return this.values.get(row);
     }
     setValue(row: Row, value: T) {
         this.values.set(row, this.transform(value));
