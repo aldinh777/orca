@@ -1,19 +1,28 @@
 import OrcaError from '../error/OrcaError';
 import Row from './Row';
 import Column from './Column';
+import type Database from './Database';
 
 export default class Model {
     private rows = new Map<string, Row>();
     private _row_ids = new WeakMap<Row, string>();
     private _name: string;
     private _columns: Map<string, Column> = new Map();
-    private _refwaitlist: Set<string> = new Set();
 
-    constructor(name: string, columns: Record<string, Column>) {
+    constructor(db: Database, name: string, columns: Record<string, Column>) {
         this._name = name;
         for (const columnName in columns) {
             const column = columns[columnName];
             this._columns.set(columnName, column);
+            if (typeof column.refModel === 'string') {
+                const modelName = column.refModel;
+                if (db.hasModel(modelName)) {
+                    column.refModel = db.selectModel(modelName);
+                } else {
+                    db.markUnresolved(modelName, column);
+                }
+            }
+            db.resolveRefferences(name, this);
         }
     }
 
@@ -38,13 +47,18 @@ export default class Model {
             if (!column) {
                 throw new OrcaError('INSERT_INVALID_COLUMN', columnName, this._name, objInput);
             }
-            column.setValue(row, value);
+            const refModel = column.getRefModel(this._name);
+            if (refModel) {
+                column.setValue(row, refModel.insert(value));
+            } else {
+                column.setValue(row, value);
+            }
         }
         this.rows.set(row.id, row);
         this._row_ids.set(row, row.id);
         return row;
     }
-    insertAll(obs: object[]): Row[] {
+    insertAll(obs: Record<string, any>[]): Row[] {
         const inserteds: Row[] = [];
         for (const o of obs) {
             inserteds.push(this.insert(o));

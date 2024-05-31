@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import OrcaDB from '../src/db/Database';
+import Database from '../src/db/Database';
 import Model from '../src/db/Model';
 import { bool, int, varchar } from '../src/db/ColumnTypes';
 
 describe('Common Operations', () => {
-    const db = new OrcaDB();
+    const db = new Database();
 
     describe('Model Operations', () => {
         let userModel: Model;

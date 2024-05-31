@@ -5,7 +5,7 @@ import type Row from './Row';
 export default class Column<T = any, U = T> {
     private values: WeakMap<Row, U> = new WeakMap();
     private transform: (value: T) => U;
-    private refModel?: Model | string;
+    refModel?: Model | string;
 
     constructor(transform: (value: T) => U, ref?: string | Model) {
         this.transform = transform;
@@ -18,10 +18,7 @@ export default class Column<T = any, U = T> {
         this.values.set(row, this.transform(value));
     }
 
-    getRefModel(source: string): Model {
-        if (!this.refModel) {
-            throw new OrcaError('MODEL_REF_INVALIDATED', source);
-        }
+    getRefModel(source: string): Model | undefined {
         if (typeof this.refModel === 'string') {
             throw new OrcaError('MODEL_REF_UNRESOLVED', source, this.refModel);
         }

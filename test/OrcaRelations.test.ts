@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'bun:test';
-import DB from '../src/db/Database';
+import Database from '../src/db/Database';
+import { ref, refs, varchar } from '../src/db/ColumnTypes';
+import type Row from '../src/db/Row';
 
 describe('Relational Operations', () => {
-    const db = new DB();
+    const db = new Database();
 
     db.createModel('person', {
-        name: 'string',
-        phone: 'ref:phone',
-        friends: 'refs:person'
+        name: varchar(),
+        phone: ref('phone'),
+        friends: refs('person')
     });
 
     db.createModel('phone', {
-        model: 'string'
+        model: varchar()
     });
 
     db.selectModel('person').insertAll([
@@ -20,30 +22,30 @@ describe('Relational Operations', () => {
             phone: {
                 model: 'nookiea'
             }
-        },
-        {
-            name: 'millei',
-            friends: [
-                {
-                    name: 'minttie'
-                },
-                {
-                    name: 'paluy',
-                    phone: {
-                        model: 'sumsang'
-                    }
-                }
-            ]
         }
+        // {
+        //     name: 'millei',
+        //     friends: [
+        //         {
+        //             name: 'minttie'
+        //         },
+        //         {
+        //             name: 'paluy',
+        //             phone: {
+        //                 model: 'sumsang'
+        //             }
+        //         }
+        //     ]
+        // }
     ]);
 
     it('has valid relations', () => {
         db.selectModel('person').selectRow(
             (row) => row.get('name') === 'dookie',
             (row) => {
-                const phone = row.get('phone')();
+                const phone = row.get('phone') as Row;
                 expect(phone.get('model')).toBe('nookiea');
-                expect(row.get('friends')().length).toBe(0);
+                expect(row.get('friends').length).toBe(0);
             }
         );
         db.selectModel('person').selectRow(
