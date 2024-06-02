@@ -10,10 +10,10 @@ export class Model {
     }
 
     // Create Relations
-    hasOne(_name: string, target: Model) {
+    hasOneToOne(_name: string, target: Model) {
         return new OneToOneRelation(this, target);
     }
-    hasMany(_name: string, target: Model, _relation: OneToOneRelation) {
+    hasOneToMany(_name: string, target: Model, _relation: OneToOneRelation) {
         return new OneToManyRelation(this, target);
     }
     hasManyToMany(_name: string, target: Model, _relation?: ManyToManyRelation) {

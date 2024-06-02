@@ -21,8 +21,8 @@ describe('Common Operations', () => {
         .done();
 
     // Model Relation
-    const Authors = Post.hasOne('author', Person);
-    Person.hasMany('posts', Post, Authors);
+    const Authors = Post.hasOneToOne('author', Person);
+    Person.hasOneToMany('posts', Post, Authors);
 
     Person.hasManyToMany('friends', Person);
 
