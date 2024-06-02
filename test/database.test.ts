@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import DataBase from '../src/db/DataBase';
+import { DataBase } from '../src/db/DataBase';
 
 describe('Common Operations', () => {
     const db = new DataBase();

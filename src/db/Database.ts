@@ -1,12 +1,12 @@
 import { Model } from './Model';
-import { ModelBuilder } from './ModelBuilder';
+import { ModelBuilder, type ModelOptions } from './ModelBuilder';
 
-export default class DataBase {
+export class DataBase {
     #models: Map<string, Model> = new Map();
 
     // Model Operation
-    createModel(name: string, _opts?: { id_type: 'increment' | 'uuid' }): ModelBuilder {
-        return new ModelBuilder((model) => {
+    createModel(name: string, opts: Partial<ModelOptions> = {}): ModelBuilder {
+        return new ModelBuilder(opts, (model) => {
             this.#models.set(name, model);
         });
     }
