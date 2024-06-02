@@ -24,10 +24,10 @@ describe('Common Operations', () => {
     const Authors = Post.hasOne('author', Person);
     Person.hasMany('posts', Post, Authors);
 
-    Person.hasRelation('friends', Person);
+    Person.hasManyToMany('friends', Person);
 
-    const Likes = Post.hasRelation('likes', Person);
-    Person.hasRelation('likedPosts', Post, Likes);
+    const Likes = Post.hasManyToMany('likes', Person);
+    Person.hasManyToMany('likedPosts', Post, Likes);
 
     // Model Operations
     const p1 = Person.insert({
