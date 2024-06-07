@@ -13,16 +13,6 @@ describe('Common Operations', () => {
         .bool('is_admin')
         .date('birthday')
         .done();
-    const Post = db.createModel('post').varchar('slug').varchar('title').text('content').done();
-
-    // Model Relation
-    const Authors = Post.hasOneToOne('author', Person);
-    Person.hasOneToMany('posts', Post, Authors);
-
-    Person.hasManyToMany('friends', Person);
-
-    const Likes = Post.hasManyToMany('likes', Person);
-    Person.hasManyToMany('likedPosts', Post, Likes);
 
     // Model Operations
     it('insert one data', () => {

@@ -44,10 +44,20 @@ export class Model {
         }
         return result;
     }
+    find(filter: (row: Row) => boolean) {
+        return this.#rows.find(filter);
+    }
 
     // Create Relations
-    hasOneToOne(_name: string, target: Model) {
-        return new OneToOneRelation(this as Model, target);
+    hasOneToOne(name: string, target: Model) {
+        this.#columns.set(name, (input) =>
+            typeof input === 'object'
+                ? input === null || target.#rows.includes(input)
+                    ? input
+                    : target.insert(input)
+                : null
+        );
+        return new OneToOneRelation(this, target);
     }
     hasOneToMany(_name: string, target: Model, _relation: OneToOneRelation) {
         return new OneToManyRelation(this, target);
