@@ -1,55 +1,50 @@
-import { ManyToManyRelation, OneToManyRelation, OneToOneRelation } from './Relation';
+import { Relation } from './Relation';
 
-type Row = Record<string, any>;
 export type Transformer = (input: any) => any;
 
-export class Model {
-    #rows: Row[] = [];
-    #columns!: Map<string, Transformer>;
+export class Model<T extends {}> {
+    #rows: T[] = [];
+    #columns!: Map<keyof T, Transformer>;
 
     // Column Definition
-    defineColumns(columns: Map<string, Transformer>) {
+    defineColumns(columns: Map<keyof T, Transformer>) {
         this.#columns = columns;
     }
 
     // Crud Operations
-    insert(item: Row) {
-        const raw = {};
-        const row: Row = new Proxy(raw, {
+    insert(item: Partial<T>) {
+        const raw = {} as T;
+        const row: T = new Proxy(raw, {
             set: (target, p, newValue) => {
-                const tranform = this.#columns.get(p as string);
+                const tranform = this.#columns.get(p as keyof T);
                 return tranform === undefined || Reflect.set(target, p, tranform(newValue));
-            },
-            deleteProperty: (_, p) => {
-                if (p === 'this') {
-                    this.#rows.splice(this.#rows.indexOf(row), 1);
-                    Object.freeze(raw);
-                }
-                return true;
             }
         });
         for (const column of this.#columns.keys()) {
-            row[column] = item[column];
+            row[column] = item[column]!;
         }
         this.#rows.push(row);
         return row;
     }
-    insertAll(items: Row[]) {
+    insertAll(items: Partial<T>[]) {
         return items.map((row) => this.insert(row));
     }
-    where(filter: (row: Row) => boolean, handler?: (row: Row) => any) {
+    where(filter: (row: T) => boolean, handler?: (row: T) => any) {
         const result = this.#rows.filter(filter);
         if (handler) {
             result.forEach(handler);
         }
         return result;
     }
-    find(filter: (row: Row) => boolean) {
+    find(filter: (row: T) => boolean) {
         return this.#rows.find(filter);
+    }
+    delete(row: T) {
+        this.#rows.splice(this.#rows.indexOf(row), 1);
     }
 
     // Create Relations
-    hasOneToOne(name: string, target: Model) {
+    hasOne<U extends {}>(name: keyof T, target: Model<U>, _relation?: Relation<U, T>) {
         this.#columns.set(name, (input) =>
             typeof input === 'object'
                 ? input === null || target.#rows.includes(input)
@@ -57,12 +52,9 @@ export class Model {
                     : target.insert(input)
                 : null
         );
-        return new OneToOneRelation(this, target);
+        return new Relation(this, target);
     }
-    hasOneToMany(_name: string, target: Model, _relation: OneToOneRelation) {
-        return new OneToManyRelation(this, target);
-    }
-    hasManyToMany(_name: string, target: Model, _relation?: ManyToManyRelation) {
-        return new ManyToManyRelation(this, target);
+    hasMany<U extends {}>(_name: string, target: Model<U>, _relation?: Relation<U, T>) {
+        return new Relation(this, target);
     }
 }

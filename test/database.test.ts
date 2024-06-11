@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'bun:test';
 import { DataBase } from '../src/db/DataBase';
+import { Model } from '../src/db/Model';
+
+interface Person {
+    name: string;
+    age: number;
+    score: number;
+    is_admin: boolean;
+    birthday: string | Date;
+}
 
 describe('Common Operations', () => {
     const db = new DataBase();
 
     // Model Creation
-    const Person = db
+    const Person: Model<Person> = db
         .createModel('person')
         .varchar('name')
         .int('age')
@@ -63,10 +72,15 @@ describe('Common Operations', () => {
 
     it('insert mismatched value', () => {
         const row = Person.insert({
+            // @ts-ignore
             name: 27765,
+            // @ts-ignore
             age: '66666',
+            // @ts-ignore
             score: {},
+            // @ts-ignore
             is_admin: 0,
+            // @ts-ignore
             birthday: 17111998
         });
         expect(row.name).toBe('27765');
@@ -78,6 +92,7 @@ describe('Common Operations', () => {
 
     it('update value', () => {
         const row = Person.insert({});
+        // @ts-ignore
         row.name = 266572;
         expect(row.name).toBe('266572');
     });
@@ -90,10 +105,12 @@ describe('Common Operations', () => {
             },
             {
                 name: 'cecilion',
+                // @ts-ignore
                 is_admin: 1
             },
             {
                 name: 'badaruddin',
+                // @ts-ignore
                 is_admin: 'yes'
             }
         ]);
@@ -104,28 +121,30 @@ describe('Common Operations', () => {
         // delete
         Person.where(
             (row) => row.is_admin,
-            (row) => delete row.this
+            (row) => Person.delete(row)
         );
         rows = Person.where((row) => row.is_admin);
         expect(rows).toBeArrayOfSize(0);
     });
 
     it('operates from db instead of model', () => {
-        db.from('person')!.insertAll([
+        db.from<Person>('person')!.insertAll([
             {
                 name: 'agustinus',
                 is_admin: true
             },
             {
                 name: 'cecilion',
+                // @ts-ignore
                 is_admin: 1
             },
             {
                 name: 'badaruddin',
+                // @ts-ignore
                 is_admin: 'yes'
             }
         ]);
-        const rows = db.from('person')!.where((row) => row.is_admin);
+        const rows = db.from<Person>('person')!.where((row) => row.is_admin);
         expect(rows).toBeArrayOfSize(3);
     });
 });

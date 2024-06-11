@@ -1,17 +1,11 @@
 import type { Model } from './Model';
 
-export class Relation {
-    #from: Model;
-    #to: Model;
+export class Relation<T extends {}, U extends {}> {
+    from: Model<T>;
+    to: Model<U>;
 
-    constructor(from: Model, to: Model) {
-        this.#from = from;
-        this.#to = to;
+    constructor(from: Model<T>, to: Model<U>) {
+        this.from = from;
+        this.to = to;
     }
 }
-
-export class OneToOneRelation extends Relation {}
-
-export class OneToManyRelation extends Relation {}
-
-export class ManyToManyRelation extends Relation {}
