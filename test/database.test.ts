@@ -70,7 +70,7 @@ describe('Common Operations', () => {
         expect(row.birthday).toBeDate();
     });
 
-    it('insert mismatched value', () => {
+    it('convert mismatched value', () => {
         const row = Person.insert({
             // @ts-ignore
             name: 27765,

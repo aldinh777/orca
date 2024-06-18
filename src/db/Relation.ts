@@ -8,4 +8,8 @@ export class Relation<T extends {}, U extends {}> {
         this.from = from;
         this.to = to;
     }
+
+    through(relation: Relation<any, any>) {
+        return relation;
+    }
 }
